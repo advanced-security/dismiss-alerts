@@ -31,6 +31,7 @@ public class ExposedServlet extends HttpServlet {
 				"The page \"" + capitalizeName(request.getParameter("page")) + "\" was not found.");
 		
 		// BAD: outputting the path of the resource
+		// codeql
 		response.getWriter().print("The path section of the URL was " + request.getPathInfo());
 
 		// BAD: typical XSS, this time written to an OutputStream instead of a Writer 

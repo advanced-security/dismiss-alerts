@@ -1,0 +1,3 @@
+name: custom-queries
+dependencies:
+  codeql/java-all: "*"

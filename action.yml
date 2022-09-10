@@ -1,16 +1,12 @@
-name: 'Filter SARIF'
-description: 'Filter SARIF results by path'
+name: "Dismiss alerts"
+description: 'Dismiss GitHub CodeScanning alerts that are marked as "suppressed" in SARIF'
 inputs:
-  sarif_id:
-    description: 'Identifier of the uploaded SARIF file'
+  sarif-id:
+    description: "Identifier of the uploaded SARIF file"
     required: true
-  sarif_file:
-    description: 'Path to the input SARIF file'
+  sarif-file:
+    description: "Path to the input SARIF file"
     required: true
 runs:
-  using: "composite"
-  steps:
-    - name: dismiss
-      run: |
-        python3 "${{ github.action_path }}/dismiss_suppressed_alerts.py" "${{ github.api_url }}" "${{ github.repository }}" "${{ inputs.sarif_id }}" "${{ inputs.sarif_file }}"
-      shell: bash
+  using: "node16"
+  main: "dist/index.js"

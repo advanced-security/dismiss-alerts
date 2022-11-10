@@ -34,8 +34,9 @@ public class ExposedServlet extends HttpServlet {
 		// codeql
 		response.getWriter().print("The path section of the URL was " + request.getPathInfo());
 		
-		// codeql
+
 		// BAD: typical XSS, this time written to an OutputStream instead of a Writer 
+		// codeql
 		response.getOutputStream().write(request.getPathInfo().getBytes());
 	}
 	

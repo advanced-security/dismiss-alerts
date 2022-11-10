@@ -15,7 +15,6 @@ public class ExposedServlet extends HttpServlet {
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
 	throws ServletException, IOException {
 		// BAD: a request parameter is written directly to the Servlet response stream
-		// codeql
 		response.getWriter().print(
 				"The page \"" + request.getParameter("page") + "\" was not found.");
 
@@ -34,7 +33,8 @@ public class ExposedServlet extends HttpServlet {
 		// BAD: outputting the path of the resource
 		// codeql
 		response.getWriter().print("The path section of the URL was " + request.getPathInfo());
-
+		
+		// codeql
 		// BAD: typical XSS, this time written to an OutputStream instead of a Writer 
 		response.getOutputStream().write(request.getPathInfo().getBytes());
 	}

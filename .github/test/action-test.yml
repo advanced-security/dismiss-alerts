@@ -1,8 +1,6 @@
 name: "Action Test"
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -25,16 +23,19 @@ jobs:
           languages: ${{ matrix.language }}
           packs: advanced-security-demo/${{ matrix.language }}-alert-suppression
           
+      - name: Build Java
         if: ${{ matrix.language }} == 'java'
-      - run: |
+        run: |
           javatest/build
         
+      - name: Build cpp
         if: ${{ matrix.language }} == 'cpp' 
-      - run: | 
+        run: | 
           make add-user
       
+      - name: Build Csharp
         if: ${{ matrix.language }} == 'csharp' 
-      - run: |
+        run: |
           dotnet build
 
       - name: Perform CodeQL Analysis

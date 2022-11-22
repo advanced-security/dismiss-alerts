@@ -31,7 +31,6 @@ jobs:
       - name: Build cpp
         if: ${{ matrix.language == 'cpp' }}
         run: | 
-          clang --version
           cd tests/cpp/
           make add-user
       

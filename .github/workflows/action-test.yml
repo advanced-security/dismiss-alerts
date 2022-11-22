@@ -1,4 +1,4 @@
-name: "Action Test"
+name: "CodeQL-Default-Test"
 
 on:
   workflow_dispatch:
@@ -21,7 +21,6 @@ jobs:
         uses: github/codeql-action/init@v2
         with:
           languages: ${{ matrix.language }}
-          packs: advanced-security-demo/${{ matrix.language }}-alert-suppression
           
       - name: Build java
         if: ${{ matrix.language == 'java' }}

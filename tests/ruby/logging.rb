@@ -23,5 +23,6 @@ stdout_logger.add Logger::WARN, "message", password
 stdout_logger.log Logger::WARN, password
 
 # BAD: password logged as plaintext
+#codeql
 stdout_logger << "pw: #{password}"
 #

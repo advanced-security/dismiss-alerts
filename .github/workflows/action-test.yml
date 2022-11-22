@@ -24,18 +24,18 @@ jobs:
           packs: advanced-security-demo/${{ matrix.language }}-alert-suppression
           
       - name: Build java
-        if: ${{ matrix.language }} == 'java'
+        if: ${{ matrix.language }} == "java"
         run: |
           tests/java/build
         
       - name: Build cpp
-        if: ${{ matrix.language }} == 'cpp' 
+        if: ${{ matrix.language }} == "cpp" 
         run: | 
           cd tests/cpp/
           make add-user
       
       - name: Build csharp
-        if: ${{ matrix.language }} == 'csharp' 
+        if: ${{ matrix.language }} == "csharp" 
         run: |
           cd tests/csharp
           dotnet build

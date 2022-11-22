@@ -22,6 +22,7 @@ class Program
 		{
 			foreach (ZipArchiveEntry entry in zipArchive.Entries)
 			{
+				//codeql
 				string extractPath = Path.Combine(destination, entry.FullName);
 				entry.ExtractToFile(extractPath);
 			}

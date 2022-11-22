@@ -23,19 +23,21 @@ jobs:
           languages: ${{ matrix.language }}
           packs: advanced-security-demo/${{ matrix.language }}-alert-suppression
           
-      - name: Build Java
+      - name: Build java
         if: ${{ matrix.language }} == 'java'
         run: |
-          javatest/build
+          tests/java/build
         
       - name: Build cpp
         if: ${{ matrix.language }} == 'cpp' 
         run: | 
+          cd tests/cpp/
           make add-user
       
-      - name: Build Csharp
+      - name: Build csharp
         if: ${{ matrix.language }} == 'csharp' 
         run: |
+          cd tests/csharp
           dotnet build
 
       - name: Perform CodeQL Analysis

@@ -34,6 +34,7 @@ void write_info(char *userName) {
 }
 
 void overflow() {
+  //codeql
   uint16_t v = 65535;
   uint16_t b = 1;
   uint16_t result;

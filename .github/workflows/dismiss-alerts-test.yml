@@ -47,13 +47,6 @@ jobs:
         with:
           output: ${{ matrix.language }}-sarif-results
          
-      - name: Upload SARIF as a Build Artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.language }}.sarif
-          path: ${{ matrix.language }}-sarif-results
-          retention-days: 7
-
       - name: dismiss-alerts
         uses: ./
         with:

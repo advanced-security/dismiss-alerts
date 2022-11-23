@@ -46,6 +46,13 @@ jobs:
         uses: github/codeql-action/analyze@v2
         with:
           output: ${{ matrix.language }}-sarif-results
+         
+      - name: Upload SARIF as a Build Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.language }}-sarif-results
+          path: code-scanning-results
+          retention-days: 7
 
       - name: dismiss-alerts
         uses: ./

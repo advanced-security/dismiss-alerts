@@ -29,7 +29,7 @@ void write_info(char *userName) {
   rc = sqlite3_open("users.sqlite", &db);
   /* Write info */
   sprintf(query, "SELECT UID FROM USERS where name = \"%s\"", userName);
-  rc = sqlite3_exec(db, query, NULL, 0, &zErrMsg); //codeql
+  rc = sqlite3_exec(db, query, NULL, 0, &zErrMsg); //add suppression here to test 
   sqlite3_close(db);
 }
 

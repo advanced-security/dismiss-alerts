@@ -7,7 +7,7 @@ LOGGER = logging.getLogger("LOGGER")
 
 def hash_password():
     password = "password"
-    logging.info("logging.info Password '%s'", password)  # NOT OK
+    logging.info("logging.info Password '%s'", password) #codeql
 
     LOGGER.log(logging.INFO, "LOGGER.log Password '%s'", password)  # NOT OK
     logging.root.info("logging.root.info Password '%s'", password)  # NOT OK

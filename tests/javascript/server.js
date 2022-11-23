@@ -4,7 +4,7 @@ const { Pool } = require('pg')
 
 const pool = new Pool({
     
-    user: 'dbuser', //codeql
+    user: 'dbuser', //add suppression here to test
     host: 'database.server.com',
     database: 'mydb',
     password: process.env.POSTGRES_PASSWORD,

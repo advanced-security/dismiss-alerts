@@ -3,8 +3,8 @@ var bodyParser = require('body-parser')
 const { Pool } = require('pg')
 
 const pool = new Pool({
-    //codeql
-    user: 'dbuser',
+    
+    user: 'dbuser', //codeql
     host: 'database.server.com',
     database: 'mydb',
     password: process.env.POSTGRES_PASSWORD,

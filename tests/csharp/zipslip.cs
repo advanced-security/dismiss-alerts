@@ -23,7 +23,7 @@ class Program
 			foreach (ZipArchiveEntry entry in zipArchive.Entries)
 			{
 			
-				string extractPath = Path.Combine(destination, entry.FullName); //add suppression here to test
+				string extractPath = Path.Combine(destination, entry.FullName); 
 				entry.ExtractToFile(extractPath);
 			}
 		}

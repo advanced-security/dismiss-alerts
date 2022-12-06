@@ -51,8 +51,9 @@ jobs:
         with:
           output: sarif-results
 
-      - name: dismiss-alerts
-        uses: ./
+      - name: Dismiss alerts
+        if: github.ref == 'main'
+        uses: advanced-security/dismiss-alerts
         with:
           sarif-id: ${{ steps.analyze.outputs.sarif-id }}
           sarif-file: sarif-results/java.sarif

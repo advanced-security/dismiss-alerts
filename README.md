@@ -6,6 +6,10 @@ There are two required input fields for this action:
 - `sarif-upload-id` - the SARIF identifier
 - `sarif-file` - the location of the SARIF file
 
+## High Level Architecture 
+
+The `suppressions[]` object in the sarif is used to create a list of suppressed alerts. The API's are used to retrieve a list of already dismissed alerts. These two lists are mapped using the alert identifier (rule and location).  A comparison is done between these lists and any alert that has not already been dismissed is updated with a PATCH request using the `github/alertUrl` property. The alert `state` is updated to `dismissed` with the `dismissed reason` being `won't fix`.
+
 ## Getting Started 
 
 CodeQL populates the `suppression` property in its SARIF output based on the results of `alert-suppression` queries. A user can provide their own custom alert-suppression query, or use the ones that we provide (//lgtm or //codeql style comments).
@@ -99,9 +103,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}        
 ```
-## High Level Architecture 
-
-The `suppressions[]` object in the sarif is used to create a list of suppressed alerts. The API's are used to retrieve a list of already dismissed alerts. These two lists are mapped using the alert identifier (rule and location).  A comparison is done between these lists and any alert that has not already been dismissed is updated with a PATCH request using the `github/alertUrl` property. The alert `state` is updated to `dismissed` with the `dismissed reason` being `won't fix`.
 
 ## Features and Limitations 
 

@@ -91,12 +91,13 @@ jobs:
         wait-for-processing: true
 
     - name: Dismiss alerts
-        uses: advanced-security/dismiss-alerts
-        with:
-          sarif-id: ${{ steps.upload.outputs.sarif-id }}
-          sarif-file: scan-results.sarif
-        env:
-          GITHUB_TOKEN: ${{ github.token }}        
+      if: github.ref == 'main'    
+      uses: advanced-security/dismiss-alerts
+      with:
+        sarif-id: ${{ steps.upload.outputs.sarif-id }}
+        sarif-file: scan-results.sarif
+      env:
+        GITHUB_TOKEN: ${{ github.token }}        
 ```
 ## High Level Architecture 
 

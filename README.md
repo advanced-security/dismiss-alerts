@@ -40,7 +40,7 @@ jobs:
         uses: github/codeql-action/init@v2
         with:
           languages: ${{ matrix.language }}
-          packs: advanced-security-demo/java-alert-suppression
+        packs: "codeql/java-queries:AlertSuppression.ql"
 
       - run: |
           javatest/build

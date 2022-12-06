@@ -62,7 +62,7 @@ jobs:
 
 ### Third party produced SARIF file 
 
-The `dismiss alerts` solution can be used with SARIF files from third party providers.
+The `dismiss-alerts` action can be used with SARIF files from third party providers.
 
 ``` yaml
 on:

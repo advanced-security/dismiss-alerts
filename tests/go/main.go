@@ -12,7 +12,7 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt""
 	_ "github.com/mattn/go-sqlite3"
 
 )

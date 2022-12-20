@@ -34,6 +34,12 @@ interface SarifRule {
   toolComponent: { index: number };
 }
 
+interface SarifRuleReference {
+  id?: string;
+  index: number;
+  toolComponent: { index: number };
+}
+
 interface SarifResult {
   properties?: {
     "github/alertUrl": string;
@@ -52,8 +58,8 @@ interface SarifResult {
   partialFingerprints: {
     primaryLocationLineHash?: string;
   };
-  rule: SarifRule;
-  ruleId: string;
+  rule: SarifRuleReference;
+  ruleId?: string;
   suppressions: Array<{ kind: string }>;
 }
 

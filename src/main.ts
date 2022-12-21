@@ -5,6 +5,8 @@ import * as retry from "@octokit/plugin-retry";
 import consoleLogLevel from "console-log-level";
 import * as fs from "fs";
 
+const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
+
 type GitHubClient = InstanceType<typeof GitHub>;
 interface SarifFile {
   version?: string | null;
@@ -68,6 +70,12 @@ interface Nwo {
   repo: string;
 }
 
+interface PatchPayload {
+  state: "open" | "dismissed";
+  dismissed_reason?: string;
+  dismissed_comment?: string;
+}
+
 type AlertIdentifier = string;
 /**
  * Get an environment parameter, but throw an error if it is not set.
@@ -80,11 +88,11 @@ function getRequiredEnvParam(paramName: string): string {
   return value;
 }
 
-async function dismiss_alert(client: GitHubClient, url: string) {
-  const payload = {
-    state: "dismissed",
-    dismissed_reason: "won't fix",
-  };
+async function patch_alert(
+  client: GitHubClient,
+  url: string,
+  payload: PatchPayload
+) {
   await client.request({
     method: "PATCH",
     url: url,
@@ -113,9 +121,9 @@ function get_rules_from_run(run: SarifRun) {
   return extensions;
 }
 
-function find_alerts_to_dismiss(
+function filter_alerts(
   should_be_dismissed: Set<AlertIdentifier>,
-  already_dismissed: Set<string>,
+  predicate: (alertUrl: AlertIdentifier) => boolean,
   sarif: SarifFile
 ) {
   const alerts = [];
@@ -128,7 +136,7 @@ function find_alerts_to_dismiss(
       if (should_be_dismissed.has(alert_identifier(rules, result))) {
         if (properties != null) {
           const alertUrl = properties["github/alertUrl"];
-          if (!already_dismissed.has(alertUrl)) {
+          if (predicate(alertUrl)) {
             alerts.push(alertUrl);
           }
         }
@@ -160,19 +168,22 @@ function alert_identifier(
   return [ruleId, filePath, startLine, startColumn].join(";");
 }
 
-function find_suppressed_alerts(sarif: SarifFile) {
-  const alerts = new Set<AlertIdentifier>();
+function split_alerts(sarif: SarifFile) {
+  const normal = new Set<AlertIdentifier>();
+  const suppressed = new Set<AlertIdentifier>();
 
   for (const run of sarif.runs) {
     const rules = get_rules_from_run(run);
 
     for (const result of run.results || []) {
       if (result.suppressions != null && result.suppressions.length > 0) {
-        alerts.add(alert_identifier(rules, result));
+        suppressed.add(alert_identifier(rules, result));
+      } else {
+        normal.add(alert_identifier(rules, result));
       }
     }
   }
-  return alerts;
+  return [normal, suppressed];
 }
 
 async function wait_for_upload(
@@ -239,23 +250,44 @@ async function run(): Promise<void> {
 
   const sarif1 = JSON.parse(fs.readFileSync(sarif, "utf8"));
 
-  const suppressed = find_suppressed_alerts(sarif1);
+  const [normal, suppressed] = split_alerts(sarif1);
 
   const response3 = await client.rest.codeScanning.listAlertsForRepo({
     ...nwo,
     state: "dismissed",
   });
-  const dismissed_alerts = new Set(response3.data.map((x) => x.url));
+  const dismissed_alerts = new Map(
+    response3.data.map((x) => [x.url, x.dismissed_comment || undefined])
+  );
 
-  const to_dismiss = find_alerts_to_dismiss(
+  const to_dismiss = filter_alerts(
     suppressed,
-    dismissed_alerts,
+    (alertUrl) => !dismissed_alerts.has(alertUrl),
     sarif2
   );
 
   for (const alert of to_dismiss) {
     console.debug(`Dismissing alert: ${alert}`);
-    await dismiss_alert(client, alert);
+    const payload: PatchPayload = {
+      state: "dismissed",
+      dismissed_reason: "won't fix",
+      dismissed_comment: SUPPRESSED_VIA_SARIF,
+    };
+    await patch_alert(client, alert, payload);
+  }
+
+  const to_reopen = filter_alerts(
+    normal,
+    (alertUrl) => dismissed_alerts.get(alertUrl) === SUPPRESSED_VIA_SARIF,
+    sarif2
+  );
+
+  for (const alert of to_reopen) {
+    console.debug(`Re-opening alert: ${alert}`);
+    const payload: PatchPayload = {
+      state: "open",
+    };
+    await patch_alert(client, alert, payload);
   }
 }
 

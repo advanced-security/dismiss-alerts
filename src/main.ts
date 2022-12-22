@@ -192,10 +192,19 @@ async function wait_for_upload(
   sarif_id: string
 ) {
   for (let i = 0; i < 10; i++) {
-    const response = await client.rest.codeScanning.getSarif({
-      ...nwo,
-      sarif_id,
-    });
+    if (i > 0) {
+      await new Promise((r) => setTimeout(r, 5000 * i));
+    }
+    let response;
+    try {
+      response = await client.rest.codeScanning.getSarif({
+        ...nwo,
+        sarif_id,
+      });
+    } catch (error) {
+      console.warn(error);
+      continue;
+    }
     const upload_status = response.data;
     if (upload_status.processing_status == "complete") {
       if (upload_status.analyses_url != null) {
@@ -203,7 +212,6 @@ async function wait_for_upload(
       }
       throw Error((upload_status.errors || []).join("\n"));
     }
-    await new Promise((r) => setTimeout(r, 5000 * i));
   }
   throw Error(`Processing of upload is taking too long: ${sarif_id}`);
 }

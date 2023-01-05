@@ -64,7 +64,7 @@ jobs:
 
     - name: Dismiss alerts
       if: github.ref == 'main'
-      uses: advanced-security/dismiss-alerts
+      uses: advanced-security/dismiss-alerts@v1
       with:
         # specify a 'sarif-id' and 'sarif-file'
         sarif-id: ${{ steps.analyze.outputs.sarif-id }}
@@ -98,7 +98,7 @@ jobs:
     - name: Upload scan results
       # define an 'id' for the upload step
       id: upload
-      uses: github/codeql-action/upload-sarif
+      uses: github/codeql-action/upload-sarif@v2
       with:
         # specify the SARIF file to upload
         sarif_file: scan-results.sarif
@@ -106,7 +106,7 @@ jobs:
 
     - name: Dismiss alerts
       if: github.ref == 'main'    
-      uses: advanced-security/dismiss-alerts
+      uses: advanced-security/dismiss-alerts@v1
       with:
         # specify a 'sarif-id' and 'sarif-file'
         sarif-id: ${{ steps.upload.outputs.sarif-id }}

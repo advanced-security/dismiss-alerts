@@ -47,22 +47,26 @@ jobs:
       uses: github/codeql-action/init@v2
       with:
         languages: ${{ matrix.language }}
+        # run an 'alert-suppression' query
         packs: "codeql/${{ matrix.language }}-queries:AlertSuppression.ql"
 
     - name: Autobuild
       uses: github/codeql-action/autobuild@v2
 
     - name: Perform CodeQL Analysis
+      # define an 'id' for the analysis step
       id: analyze
       uses: github/codeql-action/analyze@v2
       with:
         category: "/language:${{matrix.language}}"
+        # define the output folder for SARIF files
         output: sarif-results
 
     - name: Dismiss alerts
       if: github.ref == 'main'
       uses: advanced-security/dismiss-alerts
       with:
+        # specify a 'sarif-id' and 'sarif-file'
         sarif-id: ${{ steps.analyze.outputs.sarif-id }}
         sarif-file: sarif-results/${{ matrix.language }}.sarif
       env:
@@ -92,9 +96,11 @@ jobs:
       run: sast-scan.sh --output=scan-results.sarif
       
     - name: Upload scan results
+      # define an 'id' for the upload step
       id: upload
       uses: github/codeql-action/upload-sarif
       with:
+        # specify the SARIF file to upload
         sarif_file: scan-results.sarif
         wait-for-processing: true
 
@@ -102,6 +108,7 @@ jobs:
       if: github.ref == 'main'    
       uses: advanced-security/dismiss-alerts
       with:
+        # specify a 'sarif-id' and 'sarif-file'
         sarif-id: ${{ steps.upload.outputs.sarif-id }}
         sarif-file: scan-results.sarif
       env:

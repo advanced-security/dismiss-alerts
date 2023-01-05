@@ -17,52 +17,56 @@ CodeQL populates the `suppression` property in its SARIF output based on the res
 ### Example - CodeQL 
 
 ```yaml
-name: "Action Test"
+name: "CodeQL"
+
 on:
  push:
-   branches: [main]
+   branches: [ main ]
  pull_request:
-    # The branches below must be a subset of the branches above
-   branches: [main]
- workflow_dispatch:
+    branches: [ main ]
 
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
     strategy:
       fail-fast: false
       matrix:
-        language: ["java"]
+        language: [ "java" ]
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
-        with:
-          languages: ${{ matrix.language }}
-        packs: "codeql/java-queries:AlertSuppression.ql"
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+        packs: "codeql/${{ matrix.language }}-queries:AlertSuppression.ql"
 
-      - run: |
-          javatest/build
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
 
-      - name: Perform CodeQL Analysis
-        id: analyze
-        uses: github/codeql-action/analyze@v2
-        with:
-          output: sarif-results
+    - name: Perform CodeQL Analysis
+      id: analyze
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:${{matrix.language}}"
+        output: sarif-results
 
-      - name: Dismiss alerts
-        if: github.ref == 'main'
-        uses: advanced-security/dismiss-alerts
-        with:
-          sarif-id: ${{ steps.analyze.outputs.sarif-id }}
-          sarif-file: sarif-results/java.sarif
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+    - name: Dismiss alerts
+      if: github.ref == 'main'
+      uses: advanced-security/dismiss-alerts
+      with:
+        sarif-id: ${{ steps.analyze.outputs.sarif-id }}
+        sarif-file: sarif-results/${{ matrix.language }}.sarif
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
 ```
 
 ### Third party produced SARIF file 

@@ -48,6 +48,7 @@ const utils_1 = __nccwpck_require__(3030);
 const retry = __importStar(__nccwpck_require__(6298));
 const console_log_level_1 = __importDefault(__nccwpck_require__(385));
 const fs = __importStar(__nccwpck_require__(7147));
+const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
 /**
  * Get an environment parameter, but throw an error if it is not set.
  */
@@ -58,12 +59,8 @@ function getRequiredEnvParam(paramName) {
     }
     return value;
 }
-function dismiss_alert(client, url) {
+function patch_alert(client, url, payload) {
     return __awaiter(this, void 0, void 0, function* () {
-        const payload = {
-            state: "dismissed",
-            dismissed_reason: "won't fix",
-        };
         yield client.request({
             method: "PATCH",
             url: url,
@@ -91,7 +88,7 @@ function get_rules_from_run(run) {
     }
     return extensions;
 }
-function find_alerts_to_dismiss(should_be_dismissed, already_dismissed, sarif) {
+function filter_alerts(should_be_dismissed, predicate, sarif) {
     const alerts = [];
     let rules;
     for (const run of sarif.runs) {
@@ -101,7 +98,7 @@ function find_alerts_to_dismiss(should_be_dismissed, already_dismissed, sarif) {
             if (should_be_dismissed.has(alert_identifier(rules, result))) {
                 if (properties != null) {
                     const alertUrl = properties["github/alertUrl"];
-                    if (!already_dismissed.has(alertUrl)) {
+                    if (predicate(alertUrl)) {
                         alerts.push(alertUrl);
                     }
                 }
@@ -130,22 +127,36 @@ function alert_identifier(rules, result) {
     const startColumn = ((_b = physicalLocation.region) === null || _b === void 0 ? void 0 : _b.startColumn) || 0;
     return [ruleId, filePath, startLine, startColumn].join(";");
 }
-function find_suppressed_alerts(sarif) {
-    const alerts = new Set();
+function split_alerts(sarif) {
+    const normal = new Set();
+    const suppressed = new Set();
     for (const run of sarif.runs) {
         const rules = get_rules_from_run(run);
         for (const result of run.results || []) {
             if (result.suppressions != null && result.suppressions.length > 0) {
-                alerts.add(alert_identifier(rules, result));
+                suppressed.add(alert_identifier(rules, result));
+            }
+            else {
+                normal.add(alert_identifier(rules, result));
             }
         }
     }
-    return alerts;
+    return [normal, suppressed];
 }
 function wait_for_upload(client, nwo, sarif_id) {
     return __awaiter(this, void 0, void 0, function* () {
         for (let i = 0; i < 10; i++) {
-            const response = yield client.rest.codeScanning.getSarif(Object.assign(Object.assign({}, nwo), { sarif_id }));
+            if (i > 0) {
+                yield new Promise((r) => setTimeout(r, 5000 * i));
+            }
+            let response;
+            try {
+                response = yield client.rest.codeScanning.getSarif(Object.assign(Object.assign({}, nwo), { sarif_id }));
+            }
+            catch (error) {
+                console.warn(error);
+                continue;
+            }
             const upload_status = response.data;
             if (upload_status.processing_status == "complete") {
                 if (upload_status.analyses_url != null) {
@@ -153,7 +164,6 @@ function wait_for_upload(client, nwo, sarif_id) {
                 }
                 throw Error((upload_status.errors || []).join("\n"));
             }
-            yield new Promise((r) => setTimeout(r, 5000 * i));
         }
         throw Error(`Processing of upload is taking too long: ${sarif_id}`);
     });
@@ -193,13 +203,26 @@ function run() {
         });
         const sarif2 = response2.data;
         const sarif1 = JSON.parse(fs.readFileSync(sarif, "utf8"));
-        const suppressed = find_suppressed_alerts(sarif1);
+        const [normal, suppressed] = split_alerts(sarif1);
         const response3 = yield client.rest.codeScanning.listAlertsForRepo(Object.assign(Object.assign({}, nwo), { state: "dismissed" }));
-        const dismissed_alerts = new Set(response3.data.map((x) => x.url));
-        const to_dismiss = find_alerts_to_dismiss(suppressed, dismissed_alerts, sarif2);
+        const dismissed_alerts = new Map(response3.data.map((x) => [x.url, x.dismissed_comment || undefined]));
+        const to_dismiss = filter_alerts(suppressed, (alertUrl) => !dismissed_alerts.has(alertUrl), sarif2);
         for (const alert of to_dismiss) {
             console.debug(`Dismissing alert: ${alert}`);
-            yield dismiss_alert(client, alert);
+            const payload = {
+                state: "dismissed",
+                dismissed_reason: "won't fix",
+                dismissed_comment: SUPPRESSED_VIA_SARIF,
+            };
+            yield patch_alert(client, alert, payload);
+        }
+        const to_reopen = filter_alerts(normal, (alertUrl) => dismissed_alerts.get(alertUrl) === SUPPRESSED_VIA_SARIF, sarif2);
+        for (const alert of to_reopen) {
+            console.debug(`Re-opening alert: ${alert}`);
+            const payload = {
+                state: "open",
+            };
+            yield patch_alert(client, alert, payload);
         }
     });
 }

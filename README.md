@@ -8,61 +8,69 @@ There are two required input fields for this action:
 
 ## High Level Architecture 
 
-The `suppressions[]` object in the sarif is used to create a list of suppressed alerts. The API's are used to retrieve a list of already dismissed alerts. These two lists are mapped using the alert identifier (rule and location).  A comparison is done between these lists and any alert that has not already been dismissed is updated with a PATCH request using the `github/alertUrl` property. The alert `state` is updated to `dismissed` with the `dismissed reason` being `won't fix`.
+The `suppressions[]` object in the sarif is used to create a list of suppressed alerts. The API's are used to retrieve a list of already dismissed alerts. These two lists are mapped using the alert identifier (rule and location).  A comparison is done between these lists and any alert that has not already been dismissed is updated with a PATCH request using the `github/alertUrl` property. The alert `state` is updated to `dismissed` with the `dismissed reason` being `won't fix` and the `dismissed comment` being `Suppressed via SARIF`. Vice versa, any alerts that are dismissed with a comment `Suppressed via SARIF` in the Code Scanning UI are re-opened, if they are no longer marked as suppressed in the SARIF file.
 
 ## Getting Started 
 
-CodeQL populates the `suppression` property in its SARIF output based on the results of `alert-suppression` queries. A user can provide their own custom alert-suppression query, or use the ones that we provide (//lgtm or //codeql style comments).
+CodeQL populates the `suppression` property in its SARIF output based on the results of `alert-suppression` queries. A user can provide their own custom alert-suppression query, or use the ones that we provide (`//lgtm` or `//codeql` style comments).
 
 ### Example - CodeQL 
 
 ```yaml
-name: "Action Test"
+name: "CodeQL"
+
 on:
  push:
-   branches: [main]
+   branches: [ main ]
  pull_request:
-    # The branches below must be a subset of the branches above
-   branches: [main]
- workflow_dispatch:
+    branches: [ main ]
 
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
     strategy:
       fail-fast: false
       matrix:
-        language: ["java"]
+        language: [ "java" ]
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
-        with:
-          languages: ${{ matrix.language }}
-        packs: "codeql/java-queries:AlertSuppression.ql"
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+        # run an 'alert-suppression' query
+        packs: "codeql/${{ matrix.language }}-queries:AlertSuppression.ql"
 
-      - run: |
-          javatest/build
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
 
-      - name: Perform CodeQL Analysis
-        id: analyze
-        uses: github/codeql-action/analyze@v2
-        with:
-          output: sarif-results
+    - name: Perform CodeQL Analysis
+      # define an 'id' for the analysis step
+      id: analyze
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:${{matrix.language}}"
+        # define the output folder for SARIF files
+        output: sarif-results
 
-      - name: Dismiss alerts
-        if: github.ref == 'main'
-        uses: advanced-security/dismiss-alerts
-        with:
-          sarif-id: ${{ steps.analyze.outputs.sarif-id }}
-          sarif-file: sarif-results/java.sarif
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+    - name: Dismiss alerts
+      if: github.ref == 'main'
+      uses: advanced-security/dismiss-alerts@v1
+      with:
+        # specify a 'sarif-id' and 'sarif-file'
+        sarif-id: ${{ steps.analyze.outputs.sarif-id }}
+        sarif-file: sarif-results/${{ matrix.language }}.sarif
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
 ```
 
 ### Third party produced SARIF file 
@@ -88,16 +96,19 @@ jobs:
       run: sast-scan.sh --output=scan-results.sarif
       
     - name: Upload scan results
+      # define an 'id' for the upload step
       id: upload
-      uses: github/codeql-action/upload-sarif
+      uses: github/codeql-action/upload-sarif@v2
       with:
+        # specify the SARIF file to upload
         sarif_file: scan-results.sarif
         wait-for-processing: true
 
     - name: Dismiss alerts
       if: github.ref == 'main'    
-      uses: advanced-security/dismiss-alerts
+      uses: advanced-security/dismiss-alerts@v1
       with:
+        # specify a 'sarif-id' and 'sarif-file'
         sarif-id: ${{ steps.upload.outputs.sarif-id }}
         sarif-file: scan-results.sarif
       env:

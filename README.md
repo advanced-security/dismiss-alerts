@@ -20,9 +20,9 @@ CodeQL populates the `suppression` property in its SARIF output based on the res
 name: "CodeQL"
 
 on:
- push:
-   branches: [ main ]
- pull_request:
+  push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
 
 jobs:

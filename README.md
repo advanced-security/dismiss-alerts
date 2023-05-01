@@ -20,9 +20,9 @@ CodeQL populates the `suppression` property in its SARIF output based on the res
 name: "CodeQL"
 
 on:
- push:
-   branches: [ main ]
- pull_request:
+  push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
 
 jobs:
@@ -63,7 +63,7 @@ jobs:
         output: sarif-results
 
     - name: Dismiss alerts
-      if: github.ref == 'main'
+      if: github.ref == 'refs/heads/main'
       uses: advanced-security/dismiss-alerts@v1
       with:
         # specify a 'sarif-id' and 'sarif-file'
@@ -105,7 +105,7 @@ jobs:
         wait-for-processing: true
 
     - name: Dismiss alerts
-      if: github.ref == 'main'    
+      if: github.ref == 'refs/heads/main'
       uses: advanced-security/dismiss-alerts@v1
       with:
         # specify a 'sarif-id' and 'sarif-file'

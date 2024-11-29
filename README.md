@@ -89,7 +89,7 @@ jobs:
         
     - name: Dismiss alerts
       if: github.ref == 'refs/heads/main'
-      uses: s-samadi/dismiss-alerts@main
+      uses: advanced-security/dismiss-alerts@main
       with:
         sarif-id: ${{ steps.analyze.outputs.sarif-id }}
         sarif-file: sarif-results/${{ env.language }}.sarif

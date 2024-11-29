@@ -17,60 +17,84 @@ CodeQL populates the `suppression` property in its SARIF output based on the res
 ### Example - CodeQL 
 
 ```yaml
-name: "CodeQL"
+name: "CodeQL Advanced"
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-
+    branches: [main]
+  schedule:
+    - cron: "31 7 * * 3"
 jobs:
   analyze:
-    name: Analyze
-    runs-on: ubuntu-latest
+    name: Analyze (${{ matrix.language }})
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
     permissions:
+      security-events: write
+      packages: read
       actions: read
       contents: read
-      security-events: write
 
     strategy:
       fail-fast: false
       matrix:
-        language: [ "java" ]
+        include:
+        - language: go
+          build-mode: autobuild
+        - language: java-kotlin
+          build-mode: none 
+        - language: javascript-typescript
+          build-mode: none
+        - language: python
+          build-mode: none
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Map Languages
+      run: |
+        if [ "${{ matrix.language }}" == "java-kotlin" ]; then
+          echo "language=java" >> $GITHUB_ENV
+        elif [ "${{ matrix.language }}" == "javascript-typescript" ]; then
+          echo "language=javascript" >> $GITHUB_ENV
+        else
+          echo "language=${{ matrix.language }}" >> $GITHUB_ENV
+        fi
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
-        # run an 'alert-suppression' query
-        packs: "codeql/${{ matrix.language }}-queries:AlertSuppression.ql"
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+        build-mode: ${{ matrix.build-mode }}
+        packs: "codeql/${{ env.language }}-queries:AlertSuppression.ql"
+    
+    - if: matrix.build-mode == 'manual'
+      shell: bash
+      run: |
+        echo 'If you are using a "manual" build mode for one or more of the' \
+          'languages you are analyzing, replace this with the commands to build' \
+          'your code, for example:'
+        echo '  make bootstrap'
+        echo '  make release'
+        exit 1
 
     - name: Perform CodeQL Analysis
-      # define an 'id' for the analysis step
       id: analyze
       uses: github/codeql-action/analyze@v2
       with:
         category: "/language:${{matrix.language}}"
-        # define the output folder for SARIF files
         output: sarif-results
-
+        
     - name: Dismiss alerts
       if: github.ref == 'refs/heads/main'
-      uses: advanced-security/dismiss-alerts@v1
+      uses: s-samadi/dismiss-alerts@main
       with:
-        # specify a 'sarif-id' and 'sarif-file'
         sarif-id: ${{ steps.analyze.outputs.sarif-id }}
-        sarif-file: sarif-results/${{ matrix.language }}.sarif
+        sarif-file: sarif-results/${{ env.language }}.sarif
       env:
-        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_TOKEN: ${{ github.token }
 ```
 
 ### Third party produced SARIF file 

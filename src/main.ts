@@ -229,7 +229,7 @@ async function wait_for_upload(
  * for each remaining`github/alertUrl` make a PATCH request to set the dismissal state and reason
  */
 
-async function run(): Promise<void> {
+export async function run(): Promise<void> {
   const sarif_id = core.getInput("sarif-id", { required: true });
   const sarif = core.getInput("sarif-file", { required: true });
   const api_token =

@@ -40,9 +40,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - language: go
-          build-mode: autobuild
-          query: codeql/go-queries:AlertSuppression.ql        
+        - language: java-kotlin
+          build-mode: none
+          query: codeql/java-queries:AlertSuppression.ql        
 
     steps:
     - name: Checkout repository

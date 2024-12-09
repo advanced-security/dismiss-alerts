@@ -17,41 +17,43 @@ CodeQL populates the `suppression` property in its SARIF output based on the res
 ### Example - CodeQL 
 
 ```yaml
-name: "CodeQL"
+name: "CodeQL Advanced"
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-
+    branches: [main]
+  schedule:
+    - cron: "31 7 * * 3"
 jobs:
   analyze:
-    name: Analyze
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
+      security-events: write
+      packages: read
       actions: read
       contents: read
-      security-events: write
 
     strategy:
       fail-fast: false
       matrix:
-        language: [ "java" ]
+        include:
+        - language: java-kotlin
+          build-mode: none
+          query: codeql/java-queries:AlertSuppression.ql        
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
-        # run an 'alert-suppression' query
-        packs: "codeql/${{ matrix.language }}-queries:AlertSuppression.ql"
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+        build-mode: ${{ matrix.build-mode }}
+        packs: ${{ matrix.query }}
 
     - name: Perform CodeQL Analysis
       # define an 'id' for the analysis step
@@ -61,12 +63,12 @@ jobs:
         category: "/language:${{matrix.language}}"
         # define the output folder for SARIF files
         output: sarif-results
-
+        
     - name: Dismiss alerts
       if: github.ref == 'refs/heads/main'
-      uses: advanced-security/dismiss-alerts@v1
+      uses: advanced-security/dismiss-alerts@v2
       with:
-        # specify a 'sarif-id' and 'sarif-file'
+         # specify a 'sarif-id' and 'sarif-file'
         sarif-id: ${{ steps.analyze.outputs.sarif-id }}
         sarif-file: sarif-results/${{ matrix.language }}.sarif
       env:

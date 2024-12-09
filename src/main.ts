@@ -91,7 +91,7 @@ function getRequiredEnvParam(paramName: string): string {
 async function patch_alert(
   client: GitHubClient,
   url: string,
-  payload: PatchPayload
+  payload: PatchPayload,
 ) {
   await client.request({
     method: "PATCH",
@@ -124,7 +124,7 @@ function get_rules_from_run(run: SarifRun) {
 function filter_alerts(
   should_be_dismissed: Set<AlertIdentifier>,
   predicate: (alertUrl: AlertIdentifier) => boolean,
-  sarif: SarifFile
+  sarif: SarifFile,
 ) {
   const alerts = [];
   let rules;
@@ -148,7 +148,7 @@ function filter_alerts(
 
 function alert_identifier(
   rules: Array<Array<string>>,
-  result: SarifResult
+  result: SarifResult,
 ): AlertIdentifier {
   let ruleId;
   if ("ruleId" in result) {
@@ -189,7 +189,7 @@ function split_alerts(sarif: SarifFile) {
 async function wait_for_upload(
   client: GitHubClient,
   nwo: Nwo,
-  sarif_id: string
+  sarif_id: string,
 ) {
   for (let i = 0; i < 10; i++) {
     if (i > 0) {
@@ -229,7 +229,7 @@ async function wait_for_upload(
  * for each remaining`github/alertUrl` make a PATCH request to set the dismissal state and reason
  */
 
-async function run(): Promise<void> {
+export async function run(): Promise<void> {
   const sarif_id = core.getInput("sarif-id", { required: true });
   const sarif = core.getInput("sarif-file", { required: true });
   const api_token =
@@ -243,7 +243,7 @@ async function run(): Promise<void> {
       baseUrl: apiURL,
       userAgent: "dismiss-alerts",
       log: consoleLogLevel({ level: "debug" }),
-    })
+    }),
   );
   const nwo = github.context.repo;
   const analyses_url = await wait_for_upload(client, nwo, sarif_id);
@@ -265,13 +265,13 @@ async function run(): Promise<void> {
     state: "dismissed",
   });
   const dismissed_alerts = new Map(
-    response3.data.map((x) => [x.url, x.dismissed_comment || undefined])
+    response3.data.map((x) => [x.url, x.dismissed_comment || undefined]),
   );
 
   const to_dismiss = filter_alerts(
     suppressed,
     (alertUrl) => !dismissed_alerts.has(alertUrl),
-    sarif2
+    sarif2,
   );
 
   for (const alert of to_dismiss) {
@@ -287,7 +287,7 @@ async function run(): Promise<void> {
   const to_reopen = filter_alerts(
     normal,
     (alertUrl) => dismissed_alerts.get(alertUrl) === SUPPRESSED_VIA_SARIF,
-    sarif2
+    sarif2,
   );
 
   for (const alert of to_reopen) {

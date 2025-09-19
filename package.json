@@ -34,7 +34,7 @@
   "devDependencies": {
     "@types/console-log-level": "^1.4.5",
     "@types/jest": "^29.5.14",
-    "@types/node": "^22.15.19",
+    "@types/node": "^24.5.2",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "@vercel/ncc": "^0.38.3",

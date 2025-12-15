@@ -1,4 +1,5 @@
 name: "build-test"
+
 on: # rebuild any PRs and main branch changes
   pull_request:
   push:
@@ -6,11 +7,14 @@ on: # rebuild any PRs and main branch changes
       - main
       - "releases/*"
 
+permissions:
+  contents: read
+
 jobs:
   build: # make sure build/ci work properly
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - run: |
           npm ci
       - run: |

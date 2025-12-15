@@ -104,21 +104,25 @@ async function patch_alert(
 }
 
 function get_rules_from_run(run: SarifRun) {
-  const extensions = [];
-  for (const ext of run.tool?.extensions || []) {
-    let ext_rules = [];
-    for (const rule of run.tool?.driver?.rules || []) {
-      ext_rules.push(rule.id);
-    }
-    extensions.push(ext_rules);
+  const rules = [];
 
-    ext_rules = [];
+  // Index 0: driver rules
+  const driver_rules = [];
+  for (const rule of run.tool?.driver?.rules || []) {
+    driver_rules.push(rule.id);
+  }
+  rules.push(driver_rules);
+
+  // Index 1+: extension rules
+  for (const ext of run.tool?.extensions || []) {
+    const ext_rules = [];
     for (const rule of ext.rules || []) {
       ext_rules.push(rule.id);
     }
-    extensions.push(ext_rules);
+    rules.push(ext_rules);
   }
-  return extensions;
+
+  return rules;
 }
 
 function filter_alerts(

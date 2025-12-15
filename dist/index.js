@@ -215,8 +215,8 @@ function run() {
         const sarif2 = response2.data;
         const sarif1 = JSON.parse(fs.readFileSync(sarif, "utf8"));
         const [normal, suppressed] = split_alerts(sarif1);
-        const response3 = yield client.rest.codeScanning.listAlertsForRepo(Object.assign(Object.assign({}, nwo), { state: "dismissed" }));
-        const dismissed_alerts = new Map(response3.data.map((x) => [x.url, x.dismissed_comment || undefined]));
+        const all_dismissed_alerts = yield client.paginate(client.rest.codeScanning.listAlertsForRepo, Object.assign(Object.assign({}, nwo), { state: "dismissed", per_page: 100 }));
+        const dismissed_alerts = new Map(all_dismissed_alerts.map((x) => [x.url, x.dismissed_comment || undefined]));
         const to_dismiss = filter_alerts(suppressed, (alertUrl) => !dismissed_alerts.has(alertUrl), sarif2);
         for (const alert of to_dismiss) {
             console.debug(`Dismissing alert: ${alert}`);

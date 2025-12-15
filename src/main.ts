@@ -104,11 +104,14 @@ async function patch_alert(
     });
   } catch (error: unknown) {
     // If the alert is already dismissed, we can safely ignore the error
+    // GitHub API returns status 400 with "Alert is already dismissed" message
     if (
       error &&
       typeof error === "object" &&
       "message" in error &&
       typeof error.message === "string" &&
+      "status" in error &&
+      error.status === 400 &&
       error.message.includes("Alert is already dismissed")
     ) {
       console.debug(`Alert already dismissed: ${url}`);

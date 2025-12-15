@@ -8,9 +8,12 @@ describe("Error Handling", () => {
       request: jest.fn<any>(),
     };
 
-    // Mock error for already dismissed alert
-    const alreadyDismissedError = new Error(
-      "Alert is already dismissed. - https://docs.github.com/rest/code-scanning/code-scanning#update-a-code-scanning-alert",
+    // Mock error for already dismissed alert (with status 400)
+    const alreadyDismissedError = Object.assign(
+      new Error(
+        "Alert is already dismissed. - https://docs.github.com/rest/code-scanning/code-scanning#update-a-code-scanning-alert",
+      ),
+      { status: 400 },
     );
 
     mockClient.request.mockRejectedValueOnce(alreadyDismissedError);
@@ -42,9 +45,11 @@ describe("Error Handling", () => {
         error &&
         typeof error === "object" &&
         "message" in error &&
-        typeof error.message === "string"
+        typeof error.message === "string" &&
+        "status" in error
       ) {
         expect(error.message).toContain("Alert is already dismissed");
+        expect(error.status).toBe(400);
         // In the actual implementation, this would not throw
       }
     }

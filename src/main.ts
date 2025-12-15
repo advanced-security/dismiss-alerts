@@ -102,7 +102,7 @@ function isSarifFile(filename: string): boolean {
  */
 function findSarifFilesInDir(dirPath: string): string[] {
   const sarifFiles: string[] = [];
-  
+
   const walkDirectory = (dir: string) => {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
@@ -114,7 +114,7 @@ function findSarifFilesInDir(dirPath: string): string[] {
       }
     }
   };
-  
+
   walkDirectory(dirPath);
   return sarifFiles;
 }
@@ -127,7 +127,7 @@ function getSarifFilePaths(sarifPath: string): string[] {
   if (!fs.existsSync(sarifPath)) {
     throw new Error(`Path does not exist: ${sarifPath}`);
   }
-  
+
   const stats = fs.lstatSync(sarifPath);
   if (stats.isDirectory()) {
     const sarifFiles = findSarifFilesInDir(sarifPath);
@@ -151,7 +151,7 @@ function mergeSarifFiles(sarifFiles: string[]): SarifFile {
     version: "2.1.0",
     runs: [],
   };
-  
+
   for (const filePath of sarifFiles) {
     let sarifContent;
     try {
@@ -161,7 +161,7 @@ function mergeSarifFiles(sarifFiles: string[]): SarifFile {
         `Failed to parse SARIF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
       );
     }
-    
+
     if (mergedSarif.version === "2.1.0" && sarifContent.version) {
       mergedSarif.version = sarifContent.version;
     }
@@ -169,7 +169,7 @@ function mergeSarifFiles(sarifFiles: string[]): SarifFile {
       mergedSarif.runs.push(...sarifContent.runs);
     }
   }
-  
+
   return mergedSarif;
 }
 
@@ -344,7 +344,7 @@ export async function run(): Promise<void> {
   // Get SARIF file paths (supports both file and directory)
   const sarifFiles = getSarifFilePaths(sarifPath);
   core.debug(`Found ${sarifFiles.length} SARIF file(s) to process`);
-  
+
   // Merge all SARIF files into a single object
   const sarif1 = mergeSarifFiles(sarifFiles);
 

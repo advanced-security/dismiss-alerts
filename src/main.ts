@@ -164,7 +164,7 @@ function alert_identifier(
   const physicalLocation = result.locations[0].physicalLocation;
   const filePath = physicalLocation.artifactLocation.uri;
   const startLine = physicalLocation.region?.startLine || 0;
-  const startColumn = physicalLocation.region?.startColumn || 0;
+  const startColumn = physicalLocation.region?.startColumn || 1;
   return [ruleId, filePath, startLine, startColumn].join(";");
 }
 

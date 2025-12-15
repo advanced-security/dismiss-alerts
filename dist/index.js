@@ -127,12 +127,18 @@ function getSarifFilePaths(sarifPath) {
  */
 function mergeSarifFiles(sarifFiles) {
     const mergedSarif = {
-        version: null,
+        version: "2.1.0",
         runs: [],
     };
     for (const filePath of sarifFiles) {
-        const sarifContent = JSON.parse(fs.readFileSync(filePath, "utf8"));
-        if (mergedSarif.version === null && sarifContent.version) {
+        let sarifContent;
+        try {
+            sarifContent = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        }
+        catch (error) {
+            throw new Error(`Failed to parse SARIF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+        }
+        if (mergedSarif.version === "2.1.0" && sarifContent.version) {
             mergedSarif.version = sarifContent.version;
         }
         if (sarifContent.runs) {
@@ -286,7 +292,7 @@ function run() {
         const sarif2 = response2.data;
         // Get SARIF file paths (supports both file and directory)
         const sarifFiles = getSarifFilePaths(sarifPath);
-        console.debug(`Found ${sarifFiles.length} SARIF file(s) to process`);
+        core.debug(`Found ${sarifFiles.length} SARIF file(s) to process`);
         // Merge all SARIF files into a single object
         const sarif1 = mergeSarifFiles(sarifFiles);
         const [normal, suppressed] = split_alerts(sarif1);

@@ -230,7 +230,7 @@ function alert_identifier(rules, result) {
     const physicalLocation = result.locations[0].physicalLocation;
     const filePath = physicalLocation.artifactLocation.uri;
     const startLine = ((_a = physicalLocation.region) === null || _a === void 0 ? void 0 : _a.startLine) || 0;
-    const startColumn = ((_b = physicalLocation.region) === null || _b === void 0 ? void 0 : _b.startColumn) || 0;
+    const startColumn = ((_b = physicalLocation.region) === null || _b === void 0 ? void 0 : _b.startColumn) || 1;
     return [ruleId, filePath, startLine, startColumn].join(";");
 }
 function split_alerts(sarif) {

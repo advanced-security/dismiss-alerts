@@ -5,7 +5,7 @@ inputs:
     description: "Identifier of the uploaded SARIF file"
     required: true
   sarif-file:
-    description: "Path to the input SARIF file"
+    description: "Path to the input SARIF file or directory containing SARIF files"
     required: true
 runs:
   using: "node20"

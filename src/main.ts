@@ -4,6 +4,7 @@ import { GitHub, getOctokitOptions } from "@actions/github/lib/utils";
 import * as retry from "@octokit/plugin-retry";
 import consoleLogLevel from "console-log-level";
 import * as fs from "fs";
+import * as path from "path";
 
 const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
 
@@ -86,6 +87,90 @@ function getRequiredEnvParam(paramName: string): string {
     throw new Error(`${paramName} environment variable must be set`);
   }
   return value;
+}
+
+/**
+ * Check if a filename is a SARIF file based on extension.
+ */
+function isSarifFile(filename: string): boolean {
+  return filename.endsWith(".sarif") || filename.endsWith(".sarif.json");
+}
+
+/**
+ * Recursively find all SARIF files in a directory.
+ * Does not follow symlinks.
+ */
+function findSarifFilesInDir(dirPath: string): string[] {
+  const sarifFiles: string[] = [];
+
+  const walkDirectory = (dir: string) => {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.resolve(dir, entry.name);
+      if (entry.isFile() && isSarifFile(entry.name)) {
+        sarifFiles.push(fullPath);
+      } else if (entry.isDirectory()) {
+        walkDirectory(fullPath);
+      }
+    }
+  };
+
+  walkDirectory(dirPath);
+  return sarifFiles;
+}
+
+/**
+ * Get SARIF file paths from a file or directory.
+ * Returns an array of file paths.
+ */
+function getSarifFilePaths(sarifPath: string): string[] {
+  if (!fs.existsSync(sarifPath)) {
+    throw new Error(`Path does not exist: ${sarifPath}`);
+  }
+
+  const stats = fs.lstatSync(sarifPath);
+  if (stats.isDirectory()) {
+    const sarifFiles = findSarifFilesInDir(sarifPath);
+    if (sarifFiles.length === 0) {
+      throw new Error(`No SARIF files found in directory: ${sarifPath}`);
+    }
+    return sarifFiles;
+  } else if (stats.isFile()) {
+    return [sarifPath];
+  } else {
+    throw new Error(`Path is neither a file nor a directory: ${sarifPath}`);
+  }
+}
+
+/**
+ * Merge multiple SARIF files into a single SARIF object.
+ * Combines all runs from all files.
+ */
+function mergeSarifFiles(sarifFiles: string[]): SarifFile {
+  const mergedSarif: SarifFile = {
+    version: "2.1.0",
+    runs: [],
+  };
+
+  for (const filePath of sarifFiles) {
+    let sarifContent;
+    try {
+      sarifContent = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    } catch (error) {
+      throw new Error(
+        `Failed to parse SARIF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    if (mergedSarif.version === "2.1.0" && sarifContent.version) {
+      mergedSarif.version = sarifContent.version;
+    }
+    if (sarifContent.runs) {
+      mergedSarif.runs.push(...sarifContent.runs);
+    }
+  }
+
+  return mergedSarif;
 }
 
 async function patch_alert(
@@ -231,7 +316,7 @@ async function wait_for_upload(
 
 export async function run(): Promise<void> {
   const sarif_id = core.getInput("sarif-id", { required: true });
-  const sarif = core.getInput("sarif-file", { required: true });
+  const sarifPath = core.getInput("sarif-file", { required: true });
   const api_token =
     core.getInput("token") || getRequiredEnvParam("GITHUB_TOKEN");
 
@@ -256,7 +341,12 @@ export async function run(): Promise<void> {
   });
   const sarif2 = response2.data;
 
-  const sarif1 = JSON.parse(fs.readFileSync(sarif, "utf8"));
+  // Get SARIF file paths (supports both file and directory)
+  const sarifFiles = getSarifFilePaths(sarifPath);
+  core.debug(`Found ${sarifFiles.length} SARIF file(s) to process`);
+
+  // Merge all SARIF files into a single object
+  const sarif1 = mergeSarifFiles(sarifFiles);
 
   const [normal, suppressed] = split_alerts(sarif1);
 

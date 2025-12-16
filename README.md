@@ -4,7 +4,7 @@ The `dismiss alerts` action [dismisses](https://docs.github.com/en/code-security
 
 There are two required input fields for this action: 
 - `sarif-upload-id` - the SARIF identifier
-- `sarif-file` - the location of the SARIF file
+- `sarif-file` - the location of the SARIF file or directory containing SARIF files. When a directory is provided, all `.sarif` and `.sarif.json` files will be processed recursively.
 
 ## High Level Architecture 
 
@@ -113,6 +113,50 @@ jobs:
         # specify a 'sarif-id' and 'sarif-file'
         sarif-id: ${{ steps.upload.outputs.sarif-id }}
         sarif-file: scan-results.sarif
+      env:
+        GITHUB_TOKEN: ${{ github.token }}        
+```
+
+### Using a directory of SARIF files
+
+Tools like Checkov can output multiple SARIF files in a directory. The `sarif-file` input supports both a single file path and a directory path. When a directory is provided, all `.sarif` and `.sarif.json` files will be processed recursively.
+
+``` yaml
+on:
+  push:
+
+jobs:
+  checkov-scan:
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Run Checkov
+      run: |
+        mkdir -p checkov-results
+        checkov --directory . --output sarif --output-file-path checkov-results
+      
+    - name: Upload scan results
+      # define an 'id' for the upload step
+      id: upload
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        # specify the directory containing SARIF files
+        sarif_file: checkov-results
+        wait-for-processing: true
+
+    - name: Dismiss alerts
+      if: github.ref == 'refs/heads/main'
+      uses: advanced-security/dismiss-alerts@v1
+      with:
+        # specify a 'sarif-id' and directory containing SARIF files
+        sarif-id: ${{ steps.upload.outputs.sarif-id }}
+        sarif-file: checkov-results
       env:
         GITHUB_TOKEN: ${{ github.token }}        
 ```

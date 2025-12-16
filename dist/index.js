@@ -59,6 +59,7 @@ const utils_1 = __nccwpck_require__(8006);
 const retry = __importStar(__nccwpck_require__(3450));
 const console_log_level_1 = __importDefault(__nccwpck_require__(9653));
 const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
 const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
 /**
  * Get an environment parameter, but throw an error if it is not set.
@@ -69,6 +70,82 @@ function getRequiredEnvParam(paramName) {
         throw new Error(`${paramName} environment variable must be set`);
     }
     return value;
+}
+/**
+ * Check if a filename is a SARIF file based on extension.
+ */
+function isSarifFile(filename) {
+    return filename.endsWith(".sarif") || filename.endsWith(".sarif.json");
+}
+/**
+ * Recursively find all SARIF files in a directory.
+ * Does not follow symlinks.
+ */
+function findSarifFilesInDir(dirPath) {
+    const sarifFiles = [];
+    const walkDirectory = (dir) => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.resolve(dir, entry.name);
+            if (entry.isFile() && isSarifFile(entry.name)) {
+                sarifFiles.push(fullPath);
+            }
+            else if (entry.isDirectory()) {
+                walkDirectory(fullPath);
+            }
+        }
+    };
+    walkDirectory(dirPath);
+    return sarifFiles;
+}
+/**
+ * Get SARIF file paths from a file or directory.
+ * Returns an array of file paths.
+ */
+function getSarifFilePaths(sarifPath) {
+    if (!fs.existsSync(sarifPath)) {
+        throw new Error(`Path does not exist: ${sarifPath}`);
+    }
+    const stats = fs.lstatSync(sarifPath);
+    if (stats.isDirectory()) {
+        const sarifFiles = findSarifFilesInDir(sarifPath);
+        if (sarifFiles.length === 0) {
+            throw new Error(`No SARIF files found in directory: ${sarifPath}`);
+        }
+        return sarifFiles;
+    }
+    else if (stats.isFile()) {
+        return [sarifPath];
+    }
+    else {
+        throw new Error(`Path is neither a file nor a directory: ${sarifPath}`);
+    }
+}
+/**
+ * Merge multiple SARIF files into a single SARIF object.
+ * Combines all runs from all files.
+ */
+function mergeSarifFiles(sarifFiles) {
+    const mergedSarif = {
+        version: "2.1.0",
+        runs: [],
+    };
+    for (const filePath of sarifFiles) {
+        let sarifContent;
+        try {
+            sarifContent = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        }
+        catch (error) {
+            throw new Error(`Failed to parse SARIF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+        }
+        if (mergedSarif.version === "2.1.0" && sarifContent.version) {
+            mergedSarif.version = sarifContent.version;
+        }
+        if (sarifContent.runs) {
+            mergedSarif.runs.push(...sarifContent.runs);
+        }
+    }
+    return mergedSarif;
 }
 function patch_alert(client, url, payload) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -194,7 +271,7 @@ function wait_for_upload(client, nwo, sarif_id) {
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         const sarif_id = core.getInput("sarif-id", { required: true });
-        const sarif = core.getInput("sarif-file", { required: true });
+        const sarifPath = core.getInput("sarif-file", { required: true });
         const api_token = core.getInput("token") || getRequiredEnvParam("GITHUB_TOKEN");
         const apiURL = getRequiredEnvParam("GITHUB_API_URL");
         const retryingOctokit = utils_1.GitHub.plugin(retry.retry);
@@ -213,7 +290,11 @@ function run() {
             headers: { Accept: "application/sarif+json" },
         });
         const sarif2 = response2.data;
-        const sarif1 = JSON.parse(fs.readFileSync(sarif, "utf8"));
+        // Get SARIF file paths (supports both file and directory)
+        const sarifFiles = getSarifFilePaths(sarifPath);
+        core.debug(`Found ${sarifFiles.length} SARIF file(s) to process`);
+        // Merge all SARIF files into a single object
+        const sarif1 = mergeSarifFiles(sarifFiles);
         const [normal, suppressed] = split_alerts(sarif1);
         const response3 = yield client.rest.codeScanning.listAlertsForRepo(Object.assign(Object.assign({}, nwo), { state: "dismissed" }));
         const dismissed_alerts = new Map(response3.data.map((x) => [x.url, x.dismissed_comment || undefined]));

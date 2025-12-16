@@ -179,20 +179,22 @@ function patch_alert(client, url, payload) {
 }
 function get_rules_from_run(run) {
     var _a, _b, _c;
-    const extensions = [];
-    for (const ext of ((_a = run.tool) === null || _a === void 0 ? void 0 : _a.extensions) || []) {
-        let ext_rules = [];
-        for (const rule of ((_c = (_b = run.tool) === null || _b === void 0 ? void 0 : _b.driver) === null || _c === void 0 ? void 0 : _c.rules) || []) {
-            ext_rules.push(rule.id);
-        }
-        extensions.push(ext_rules);
-        ext_rules = [];
+    const rules = [];
+    // Index 0: driver rules
+    const driver_rules = [];
+    for (const rule of ((_b = (_a = run.tool) === null || _a === void 0 ? void 0 : _a.driver) === null || _b === void 0 ? void 0 : _b.rules) || []) {
+        driver_rules.push(rule.id);
+    }
+    rules.push(driver_rules);
+    // Index 1+: extension rules
+    for (const ext of ((_c = run.tool) === null || _c === void 0 ? void 0 : _c.extensions) || []) {
+        const ext_rules = [];
         for (const rule of ext.rules || []) {
             ext_rules.push(rule.id);
         }
-        extensions.push(ext_rules);
+        rules.push(ext_rules);
     }
-    return extensions;
+    return rules;
 }
 function filter_alerts(should_be_dismissed, predicate, sarif) {
     const alerts = [];

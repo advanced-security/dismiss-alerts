@@ -178,14 +178,33 @@ async function patch_alert(
   url: string,
   payload: PatchPayload,
 ) {
-  await client.request({
-    method: "PATCH",
-    url: url,
-    data: payload,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  try {
+    await client.request({
+      method: "PATCH",
+      url: url,
+      data: payload,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (error: unknown) {
+    // If the alert is already dismissed, we can safely ignore the error
+    // GitHub API returns status 400 with "Alert is already dismissed" message
+    if (
+      error &&
+      typeof error === "object" &&
+      "message" in error &&
+      typeof error.message === "string" &&
+      "status" in error &&
+      error.status === 400 &&
+      error.message.includes("Alert is already dismissed")
+    ) {
+      console.debug(`Alert already dismissed: ${url}`);
+      return;
+    }
+    // Re-throw any other errors
+    throw error;
+  }
 }
 
 function get_rules_from_run(run: SarifRun) {
@@ -350,12 +369,16 @@ export async function run(): Promise<void> {
 
   const [normal, suppressed] = split_alerts(sarif1);
 
-  const response3 = await client.rest.codeScanning.listAlertsForRepo({
-    ...nwo,
-    state: "dismissed",
-  });
+  const all_dismissed_alerts = await client.paginate(
+    client.rest.codeScanning.listAlertsForRepo,
+    {
+      ...nwo,
+      state: "dismissed",
+      per_page: 100,
+    },
+  );
   const dismissed_alerts = new Map(
-    response3.data.map((x) => [x.url, x.dismissed_comment || undefined]),
+    all_dismissed_alerts.map((x) => [x.url, x.dismissed_comment || undefined]),
   );
 
   const to_dismiss = filter_alerts(

@@ -149,14 +149,32 @@ function mergeSarifFiles(sarifFiles) {
 }
 function patch_alert(client, url, payload) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield client.request({
-            method: "PATCH",
-            url: url,
-            data: payload,
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
+        try {
+            yield client.request({
+                method: "PATCH",
+                url: url,
+                data: payload,
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+        }
+        catch (error) {
+            // If the alert is already dismissed, we can safely ignore the error
+            // GitHub API returns status 400 with "Alert is already dismissed" message
+            if (error &&
+                typeof error === "object" &&
+                "message" in error &&
+                typeof error.message === "string" &&
+                "status" in error &&
+                error.status === 400 &&
+                error.message.includes("Alert is already dismissed")) {
+                console.debug(`Alert already dismissed: ${url}`);
+                return;
+            }
+            // Re-throw any other errors
+            throw error;
+        }
     });
 }
 function get_rules_from_run(run) {
@@ -296,8 +314,8 @@ function run() {
         // Merge all SARIF files into a single object
         const sarif1 = mergeSarifFiles(sarifFiles);
         const [normal, suppressed] = split_alerts(sarif1);
-        const response3 = yield client.rest.codeScanning.listAlertsForRepo(Object.assign(Object.assign({}, nwo), { state: "dismissed" }));
-        const dismissed_alerts = new Map(response3.data.map((x) => [x.url, x.dismissed_comment || undefined]));
+        const all_dismissed_alerts = yield client.paginate(client.rest.codeScanning.listAlertsForRepo, Object.assign(Object.assign({}, nwo), { state: "dismissed", per_page: 100 }));
+        const dismissed_alerts = new Map(all_dismissed_alerts.map((x) => [x.url, x.dismissed_comment || undefined]));
         const to_dismiss = filter_alerts(suppressed, (alertUrl) => !dismissed_alerts.has(alertUrl), sarif2);
         for (const alert of to_dismiss) {
             console.debug(`Dismissing alert: ${alert}`);

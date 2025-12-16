@@ -1,8 +1,8 @@
 {
-  "name": "typescript-action",
-  "version": "0.0.0",
+  "name": "dismiss-alerts",
+  "version": "2.0.2",
   "private": true,
-  "description": "TypeScript template action",
+  "description": "Dismiss GitHub Code Scanning alerts from SARIF suppression data",
   "main": "lib/main.js",
   "scripts": {
     "build": "tsc",
@@ -15,12 +15,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/advanced-security/dismiss-alerts.git"
   },
   "keywords": [
-    "actions",
-    "node",
-    "setup"
+    "sarif",
+    "code-scanning",
+    "ghas"
   ],
   "author": "",
   "license": "MIT",

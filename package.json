@@ -27,7 +27,7 @@
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^7.0.0",
-    "@octokit/plugin-retry": "^6.0.1",
+    "@octokit/plugin-retry": "^8.0.3",
     "console-log-level": "^1.4.1",
     "nock": "^13.5.6"
   },

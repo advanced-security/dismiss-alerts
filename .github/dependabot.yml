@@ -3,9 +3,9 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     cooldown:
-      default-days: 14
+      default-days: 5
     groups:
       github-actions-updates:
         patterns: ["*"]
@@ -14,9 +14,9 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     cooldown:
-      default-days: 14
+      default-days: 5
     groups:
       npm-dependency-updates:
         patterns: ["*"]

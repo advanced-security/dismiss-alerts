@@ -38106,7 +38106,10 @@ async function run() {
         state: "dismissed",
         per_page: 100,
     });
-    const dismissed_alerts = new Map(all_dismissed_alerts.map((x) => [x.url, x.dismissed_comment || undefined]));
+    const dismissed_alerts = new Map(all_dismissed_alerts.map((x) => [
+        x.url,
+        x.dismissed_comment || undefined,
+    ]));
     const to_dismiss = filter_alerts(suppressed, (alertUrl) => !dismissed_alerts.has(alertUrl), sarif2);
     for (const alert of to_dismiss) {
         console.debug(`Dismissing alert: ${alert}`);

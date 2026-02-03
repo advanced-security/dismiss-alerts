@@ -6,10 +6,11 @@ import * as path from "path";
 const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
 
 // Dynamic imports for ESM-only @actions packages
-let core: typeof import("@actions/core");
-let github: typeof import("@actions/github");
-let GitHub: typeof import("@actions/github/lib/utils").GitHub;
-let getOctokitOptions: typeof import("@actions/github/lib/utils").getOctokitOptions;
+let core: typeof import("@actions/core") = undefined!;
+let github: typeof import("@actions/github") = undefined!;
+let GitHub: typeof import("@actions/github/lib/utils").GitHub = undefined!;
+let getOctokitOptions: typeof import("@actions/github/lib/utils").getOctokitOptions =
+  undefined!;
 let modulesLoaded = false;
 
 async function loadActionModules() {

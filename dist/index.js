@@ -50,10 +50,10 @@ const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
 const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
 // Dynamic imports for ESM-only @actions packages
-let core;
-let github;
-let GitHub;
-let getOctokitOptions;
+let core = undefined;
+let github = undefined;
+let GitHub = undefined;
+let getOctokitOptions = undefined;
 let modulesLoaded = false;
 async function loadActionModules() {
     if (modulesLoaded) {

@@ -57,7 +57,6 @@ let getOctokitOptions;
 async function loadGitHubModules() {
     const githubModule = await Promise.all(/* import() */[__nccwpck_require__.e(536), __nccwpck_require__.e(351)]).then(__nccwpck_require__.bind(__nccwpck_require__, 1351));
     const utilsModule = await __nccwpck_require__.e(/* import() */ 536).then(__nccwpck_require__.bind(__nccwpck_require__, 6536));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     github = githubModule;
     GitHub = utilsModule.GitHub;
     getOctokitOptions = utilsModule.getOctokitOptions;
@@ -320,12 +319,7 @@ async function run() {
         state: "dismissed",
         per_page: 100,
     });
-    const dismissed_alerts = new Map(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    all_dismissed_alerts.map((x) => [
-        x.url,
-        x.dismissed_comment || undefined,
-    ]));
+    const dismissed_alerts = new Map(all_dismissed_alerts.map((x) => [x.url, x.dismissed_comment || undefined]));
     const to_dismiss = filter_alerts(suppressed, (alertUrl) => !dismissed_alerts.has(alertUrl), sarif2);
     for (const alert of to_dismiss) {
         console.debug(`Dismissing alert: ${alert}`);

@@ -14,8 +14,7 @@ let getOctokitOptions: typeof import("@actions/github/lib/utils").getOctokitOpti
 async function loadGitHubModules() {
   const githubModule = await import("@actions/github");
   const utilsModule = await import("@actions/github/lib/utils");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  github = githubModule as any;
+  github = githubModule;
   GitHub = utilsModule.GitHub;
   getOctokitOptions = utilsModule.getOctokitOptions;
 }
@@ -397,11 +396,7 @@ export async function run(): Promise<void> {
     },
   );
   const dismissed_alerts = new Map(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    all_dismissed_alerts.map((x: any) => [
-      x.url,
-      x.dismissed_comment || undefined,
-    ]),
+    all_dismissed_alerts.map((x) => [x.url, x.dismissed_comment || undefined]),
   );
 
   const to_dismiss = filter_alerts(

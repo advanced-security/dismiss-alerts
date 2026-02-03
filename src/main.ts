@@ -10,13 +10,18 @@ const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
 let github: typeof import("@actions/github");
 let GitHub: typeof import("@actions/github/lib/utils").GitHub;
 let getOctokitOptions: typeof import("@actions/github/lib/utils").getOctokitOptions;
+let modulesLoaded = false;
 
 async function loadGitHubModules() {
+  if (modulesLoaded) {
+    return;
+  }
   const githubModule = await import("@actions/github");
   const utilsModule = await import("@actions/github/lib/utils");
   github = githubModule;
   GitHub = utilsModule.GitHub;
   getOctokitOptions = utilsModule.getOctokitOptions;
+  modulesLoaded = true;
 }
 
 type GitHubClient = InstanceType<typeof GitHub>;

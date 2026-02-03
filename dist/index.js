@@ -54,12 +54,17 @@ const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
 let github;
 let GitHub;
 let getOctokitOptions;
+let modulesLoaded = false;
 async function loadGitHubModules() {
+    if (modulesLoaded) {
+        return;
+    }
     const githubModule = await Promise.all(/* import() */[__nccwpck_require__.e(536), __nccwpck_require__.e(351)]).then(__nccwpck_require__.bind(__nccwpck_require__, 1351));
     const utilsModule = await __nccwpck_require__.e(/* import() */ 536).then(__nccwpck_require__.bind(__nccwpck_require__, 6536));
     github = githubModule;
     GitHub = utilsModule.GitHub;
     getOctokitOptions = utilsModule.getOctokitOptions;
+    modulesLoaded = true;
 }
 /**
  * Get an environment parameter, but throw an error if it is not set.

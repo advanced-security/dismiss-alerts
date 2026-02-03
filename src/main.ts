@@ -1,4 +1,3 @@
-import * as core from "@actions/core";
 import * as retry from "@octokit/plugin-retry";
 import consoleLogLevel from "console-log-level";
 import * as fs from "fs";
@@ -6,18 +5,21 @@ import * as path from "path";
 
 const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
 
-// Dynamic import for ESM-only @actions/github package
+// Dynamic imports for ESM-only @actions packages
+let core: typeof import("@actions/core");
 let github: typeof import("@actions/github");
 let GitHub: typeof import("@actions/github/lib/utils").GitHub;
 let getOctokitOptions: typeof import("@actions/github/lib/utils").getOctokitOptions;
 let modulesLoaded = false;
 
-async function loadGitHubModules() {
+async function loadActionModules() {
   if (modulesLoaded) {
     return;
   }
+  const coreModule = await import("@actions/core");
   const githubModule = await import("@actions/github");
   const utilsModule = await import("@actions/github/lib/utils");
+  core = coreModule;
   github = githubModule;
   GitHub = utilsModule.GitHub;
   getOctokitOptions = utilsModule.getOctokitOptions;
@@ -354,8 +356,8 @@ async function wait_for_upload(
  */
 
 export async function run(): Promise<void> {
-  // Load ESM-only @actions/github modules
-  await loadGitHubModules();
+  // Load ESM-only @actions packages
+  await loadActionModules();
 
   const sarif_id = core.getInput("sarif-id", { required: true });
   const sarifPath = core.getInput("sarif-file", { required: true });

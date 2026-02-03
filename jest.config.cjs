@@ -3,7 +3,11 @@ module.exports = {
   moduleFileExtensions: ['js', 'ts'],
   testMatch: ['**/*.test.ts'],
   transform: {
-    '^.+\\.ts$': ['ts-jest', {}]
+    '^.+\\.ts$': ['ts-jest', {
+      diagnostics: {
+        ignoreCodes: [151002]
+      }
+    }]
   },
   verbose: true
 }

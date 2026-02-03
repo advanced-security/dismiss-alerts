@@ -382,7 +382,7 @@ export async function run(): Promise<void> {
     },
   );
   const dismissed_alerts = new Map(
-    all_dismissed_alerts.map((x) => [x.url, x.dismissed_comment || undefined]),
+    all_dismissed_alerts.map((x: { url: string; dismissed_comment?: string | null }) => [x.url, x.dismissed_comment || undefined]),
   );
 
   const to_dismiss = filter_alerts(

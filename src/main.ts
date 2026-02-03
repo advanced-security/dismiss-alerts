@@ -1,12 +1,24 @@
 import * as core from "@actions/core";
-import * as github from "@actions/github";
-import { GitHub, getOctokitOptions } from "@actions/github/lib/utils";
 import * as retry from "@octokit/plugin-retry";
 import consoleLogLevel from "console-log-level";
 import * as fs from "fs";
 import * as path from "path";
 
 const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
+
+// Dynamic import for ESM-only @actions/github package
+let github: typeof import("@actions/github");
+let GitHub: typeof import("@actions/github/lib/utils").GitHub;
+let getOctokitOptions: typeof import("@actions/github/lib/utils").getOctokitOptions;
+
+async function loadGitHubModules() {
+  const githubModule = await import("@actions/github");
+  const utilsModule = await import("@actions/github/lib/utils");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  github = githubModule as any;
+  GitHub = utilsModule.GitHub;
+  getOctokitOptions = utilsModule.getOctokitOptions;
+}
 
 type GitHubClient = InstanceType<typeof GitHub>;
 interface SarifFile {
@@ -338,6 +350,9 @@ async function wait_for_upload(
  */
 
 export async function run(): Promise<void> {
+  // Load ESM-only @actions/github modules
+  await loadGitHubModules();
+
   const sarif_id = core.getInput("sarif-id", { required: true });
   const sarifPath = core.getInput("sarif-file", { required: true });
   const api_token =
@@ -382,7 +397,11 @@ export async function run(): Promise<void> {
     },
   );
   const dismissed_alerts = new Map(
-    all_dismissed_alerts.map((x) => [x.url, x.dismissed_comment || undefined]),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    all_dismissed_alerts.map((x: any) => [
+      x.url,
+      x.dismissed_comment || undefined,
+    ]),
   );
 
   const to_dismiss = filter_alerts(

@@ -2,6 +2,7 @@
   "name": "dismiss-alerts",
   "version": "2.0.2",
   "private": true,
+  "type": "module",
   "description": "Dismiss GitHub Code Scanning alerts from SARIF suppression data",
   "main": "lib/main.js",
   "scripts": {
@@ -25,8 +26,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.11.1",
-    "@actions/github": "^7.0.0",
+    "@actions/core": "^3.0.0",
+    "@actions/github": "^9.0.0",
     "@octokit/plugin-retry": "^6.0.1",
     "console-log-level": "^1.4.1",
     "nock": "^13.5.6"

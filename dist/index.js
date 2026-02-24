@@ -1,348 +1,6 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 5915:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = run;
-const core = __importStar(__nccwpck_require__(7484));
-const github = __importStar(__nccwpck_require__(3228));
-const utils_1 = __nccwpck_require__(8006);
-const retry = __importStar(__nccwpck_require__(3450));
-const console_log_level_1 = __importDefault(__nccwpck_require__(9653));
-const fs = __importStar(__nccwpck_require__(9896));
-const path = __importStar(__nccwpck_require__(6928));
-const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
-/**
- * Get an environment parameter, but throw an error if it is not set.
- */
-function getRequiredEnvParam(paramName) {
-    const value = process.env[paramName];
-    if (value === undefined || value.length === 0) {
-        throw new Error(`${paramName} environment variable must be set`);
-    }
-    return value;
-}
-/**
- * Check if a filename is a SARIF file based on extension.
- */
-function isSarifFile(filename) {
-    return filename.endsWith(".sarif") || filename.endsWith(".sarif.json");
-}
-/**
- * Recursively find all SARIF files in a directory.
- * Does not follow symlinks.
- */
-function findSarifFilesInDir(dirPath) {
-    const sarifFiles = [];
-    const walkDirectory = (dir) => {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.resolve(dir, entry.name);
-            if (entry.isFile() && isSarifFile(entry.name)) {
-                sarifFiles.push(fullPath);
-            }
-            else if (entry.isDirectory()) {
-                walkDirectory(fullPath);
-            }
-        }
-    };
-    walkDirectory(dirPath);
-    return sarifFiles;
-}
-/**
- * Get SARIF file paths from a file or directory.
- * Returns an array of file paths.
- */
-function getSarifFilePaths(sarifPath) {
-    if (!fs.existsSync(sarifPath)) {
-        throw new Error(`Path does not exist: ${sarifPath}`);
-    }
-    const stats = fs.lstatSync(sarifPath);
-    if (stats.isDirectory()) {
-        const sarifFiles = findSarifFilesInDir(sarifPath);
-        if (sarifFiles.length === 0) {
-            throw new Error(`No SARIF files found in directory: ${sarifPath}`);
-        }
-        return sarifFiles;
-    }
-    else if (stats.isFile()) {
-        return [sarifPath];
-    }
-    else {
-        throw new Error(`Path is neither a file nor a directory: ${sarifPath}`);
-    }
-}
-/**
- * Merge multiple SARIF files into a single SARIF object.
- * Combines all runs from all files.
- */
-function mergeSarifFiles(sarifFiles) {
-    const mergedSarif = {
-        version: "2.1.0",
-        runs: [],
-    };
-    for (const filePath of sarifFiles) {
-        let sarifContent;
-        try {
-            sarifContent = JSON.parse(fs.readFileSync(filePath, "utf8"));
-        }
-        catch (error) {
-            throw new Error(`Failed to parse SARIF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
-        }
-        if (mergedSarif.version === "2.1.0" && sarifContent.version) {
-            mergedSarif.version = sarifContent.version;
-        }
-        if (sarifContent.runs) {
-            mergedSarif.runs.push(...sarifContent.runs);
-        }
-    }
-    return mergedSarif;
-}
-function patch_alert(client, url, payload) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            yield client.request({
-                method: "PATCH",
-                url: url,
-                data: payload,
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-        }
-        catch (error) {
-            // If the alert is already dismissed, we can safely ignore the error
-            // GitHub API returns status 400 with "Alert is already dismissed" message
-            if (error &&
-                typeof error === "object" &&
-                "message" in error &&
-                typeof error.message === "string" &&
-                "status" in error &&
-                error.status === 400 &&
-                error.message.includes("Alert is already dismissed")) {
-                console.debug(`Alert already dismissed: ${url}`);
-                return;
-            }
-            // Re-throw any other errors
-            throw error;
-        }
-    });
-}
-function get_rules_from_run(run) {
-    var _a, _b, _c;
-    const rules = [];
-    // Index 0: driver rules
-    const driver_rules = [];
-    for (const rule of ((_b = (_a = run.tool) === null || _a === void 0 ? void 0 : _a.driver) === null || _b === void 0 ? void 0 : _b.rules) || []) {
-        driver_rules.push(rule.id);
-    }
-    rules.push(driver_rules);
-    // Index 1+: extension rules
-    for (const ext of ((_c = run.tool) === null || _c === void 0 ? void 0 : _c.extensions) || []) {
-        const ext_rules = [];
-        for (const rule of ext.rules || []) {
-            ext_rules.push(rule.id);
-        }
-        rules.push(ext_rules);
-    }
-    return rules;
-}
-function filter_alerts(should_be_dismissed, predicate, sarif) {
-    const alerts = [];
-    let rules;
-    for (const run of sarif.runs) {
-        rules = get_rules_from_run(run);
-        for (const result of run.results || []) {
-            const properties = result.properties;
-            if (should_be_dismissed.has(alert_identifier(rules, result))) {
-                if (properties != null) {
-                    const alertUrl = properties["github/alertUrl"];
-                    if (predicate(alertUrl)) {
-                        alerts.push(alertUrl);
-                    }
-                }
-            }
-        }
-    }
-    return alerts;
-}
-function alert_identifier(rules, result) {
-    var _a, _b;
-    let ruleId;
-    if ("ruleId" in result) {
-        ruleId = result.ruleId;
-    }
-    else if ("id" in result.rule) {
-        ruleId = result.rule.id;
-    }
-    else {
-        const toolComponentIndex = "toolComponent" in result.rule ? result.rule.toolComponent.index + 1 : 0;
-        const ruleIndex = result.rule.index;
-        ruleId = rules[toolComponentIndex][ruleIndex];
-    }
-    const physicalLocation = result.locations[0].physicalLocation;
-    const filePath = physicalLocation.artifactLocation.uri;
-    const startLine = ((_a = physicalLocation.region) === null || _a === void 0 ? void 0 : _a.startLine) || 0;
-    const startColumn = ((_b = physicalLocation.region) === null || _b === void 0 ? void 0 : _b.startColumn) || 1;
-    return [ruleId, filePath, startLine, startColumn].join(";");
-}
-function split_alerts(sarif) {
-    const normal = new Set();
-    const suppressed = new Set();
-    for (const run of sarif.runs) {
-        const rules = get_rules_from_run(run);
-        for (const result of run.results || []) {
-            if (result.suppressions != null && result.suppressions.length > 0) {
-                suppressed.add(alert_identifier(rules, result));
-            }
-            else {
-                normal.add(alert_identifier(rules, result));
-            }
-        }
-    }
-    return [normal, suppressed];
-}
-function wait_for_upload(client, nwo, sarif_id) {
-    return __awaiter(this, void 0, void 0, function* () {
-        for (let i = 0; i < 10; i++) {
-            if (i > 0) {
-                yield new Promise((r) => setTimeout(r, 5000 * i));
-            }
-            let response;
-            try {
-                response = yield client.rest.codeScanning.getSarif(Object.assign(Object.assign({}, nwo), { sarif_id }));
-            }
-            catch (error) {
-                console.warn(error);
-                continue;
-            }
-            const upload_status = response.data;
-            if (upload_status.processing_status == "complete") {
-                if (upload_status.analyses_url != null) {
-                    return upload_status.analyses_url;
-                }
-                throw Error((upload_status.errors || []).join("\n"));
-            }
-        }
-        throw Error(`Processing of upload is taking too long: ${sarif_id}`);
-    });
-}
-/* Run codeql analyze with suppression queries in addition to normal ones
- * Upload the SARIF file and get the sarif - upload - id
- * Use sarif - upload - id to check and wait until upload is processed
- * Fetch analysis corresponding to sarif - upload - id
- * Fetch analysis in SARIF form
- * Use API to fetch list of already dismissed alerts
- * Now:
- * find alerts in the original SARIF file that have non - empty`suppressions[]`
- * match those alerts to the SARIF file fetch through the API(by rule and location) and extract the `github/alertUrl` property
- * remove`github/alertUrl` that are in the list of already dismissed alerts
- * for each remaining`github/alertUrl` make a PATCH request to set the dismissal state and reason
- */
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const sarif_id = core.getInput("sarif-id", { required: true });
-        const sarifPath = core.getInput("sarif-file", { required: true });
-        const api_token = core.getInput("token") || getRequiredEnvParam("GITHUB_TOKEN");
-        const apiURL = getRequiredEnvParam("GITHUB_API_URL");
-        const retryingOctokit = utils_1.GitHub.plugin(retry.retry);
-        const client = new retryingOctokit((0, utils_1.getOctokitOptions)(api_token, {
-            baseUrl: apiURL,
-            userAgent: "dismiss-alerts",
-            log: (0, console_log_level_1.default)({ level: "debug" }),
-        }));
-        const nwo = github.context.repo;
-        const analyses_url = yield wait_for_upload(client, nwo, sarif_id);
-        const response1 = yield client.request({ url: analyses_url });
-        const analyses = response1.data;
-        const analysis_url = analyses[0]["url"];
-        const response2 = yield client.request({
-            url: analysis_url,
-            headers: { Accept: "application/sarif+json" },
-        });
-        const sarif2 = response2.data;
-        // Get SARIF file paths (supports both file and directory)
-        const sarifFiles = getSarifFilePaths(sarifPath);
-        core.debug(`Found ${sarifFiles.length} SARIF file(s) to process`);
-        // Merge all SARIF files into a single object
-        const sarif1 = mergeSarifFiles(sarifFiles);
-        const [normal, suppressed] = split_alerts(sarif1);
-        const all_dismissed_alerts = yield client.paginate(client.rest.codeScanning.listAlertsForRepo, Object.assign(Object.assign({}, nwo), { state: "dismissed", per_page: 100 }));
-        const dismissed_alerts = new Map(all_dismissed_alerts.map((x) => [x.url, x.dismissed_comment || undefined]));
-        const to_dismiss = filter_alerts(suppressed, (alertUrl) => !dismissed_alerts.has(alertUrl), sarif2);
-        for (const alert of to_dismiss) {
-            console.debug(`Dismissing alert: ${alert}`);
-            const payload = {
-                state: "dismissed",
-                dismissed_reason: "won't fix",
-                dismissed_comment: SUPPRESSED_VIA_SARIF,
-            };
-            yield patch_alert(client, alert, payload);
-        }
-        const to_reopen = filter_alerts(normal, (alertUrl) => dismissed_alerts.get(alertUrl) === SUPPRESSED_VIA_SARIF, sarif2);
-        for (const alert of to_reopen) {
-            console.debug(`Re-opening alert: ${alert}`);
-            const payload = {
-                state: "open",
-            };
-            yield patch_alert(client, alert, payload);
-        }
-    });
-}
-void run();
-
-
-/***/ }),
-
 /***/ 4914:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -32838,6 +32496,348 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 1730:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.run = run;
+const core = __importStar(__nccwpck_require__(7484));
+const github = __importStar(__nccwpck_require__(3228));
+const utils_1 = __nccwpck_require__(8006);
+const retry = __importStar(__nccwpck_require__(3450));
+const console_log_level_1 = __importDefault(__nccwpck_require__(9653));
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
+const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
+/**
+ * Get an environment parameter, but throw an error if it is not set.
+ */
+function getRequiredEnvParam(paramName) {
+    const value = process.env[paramName];
+    if (value === undefined || value.length === 0) {
+        throw new Error(`${paramName} environment variable must be set`);
+    }
+    return value;
+}
+/**
+ * Check if a filename is a SARIF file based on extension.
+ */
+function isSarifFile(filename) {
+    return filename.endsWith(".sarif") || filename.endsWith(".sarif.json");
+}
+/**
+ * Recursively find all SARIF files in a directory.
+ * Does not follow symlinks.
+ */
+function findSarifFilesInDir(dirPath) {
+    const sarifFiles = [];
+    const walkDirectory = (dir) => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.resolve(dir, entry.name);
+            if (entry.isFile() && isSarifFile(entry.name)) {
+                sarifFiles.push(fullPath);
+            }
+            else if (entry.isDirectory()) {
+                walkDirectory(fullPath);
+            }
+        }
+    };
+    walkDirectory(dirPath);
+    return sarifFiles;
+}
+/**
+ * Get SARIF file paths from a file or directory.
+ * Returns an array of file paths.
+ */
+function getSarifFilePaths(sarifPath) {
+    if (!fs.existsSync(sarifPath)) {
+        throw new Error(`Path does not exist: ${sarifPath}`);
+    }
+    const stats = fs.lstatSync(sarifPath);
+    if (stats.isDirectory()) {
+        const sarifFiles = findSarifFilesInDir(sarifPath);
+        if (sarifFiles.length === 0) {
+            throw new Error(`No SARIF files found in directory: ${sarifPath}`);
+        }
+        return sarifFiles;
+    }
+    else if (stats.isFile()) {
+        return [sarifPath];
+    }
+    else {
+        throw new Error(`Path is neither a file nor a directory: ${sarifPath}`);
+    }
+}
+/**
+ * Merge multiple SARIF files into a single SARIF object.
+ * Combines all runs from all files.
+ */
+function mergeSarifFiles(sarifFiles) {
+    const mergedSarif = {
+        version: "2.1.0",
+        runs: [],
+    };
+    for (const filePath of sarifFiles) {
+        let sarifContent;
+        try {
+            sarifContent = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        }
+        catch (error) {
+            throw new Error(`Failed to parse SARIF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+        }
+        if (mergedSarif.version === "2.1.0" && sarifContent.version) {
+            mergedSarif.version = sarifContent.version;
+        }
+        if (sarifContent.runs) {
+            mergedSarif.runs.push(...sarifContent.runs);
+        }
+    }
+    return mergedSarif;
+}
+function patch_alert(client, url, payload) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            yield client.request({
+                method: "PATCH",
+                url: url,
+                data: payload,
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+        }
+        catch (error) {
+            // If the alert is already dismissed, we can safely ignore the error
+            // GitHub API returns status 400 with "Alert is already dismissed" message
+            if (error &&
+                typeof error === "object" &&
+                "message" in error &&
+                typeof error.message === "string" &&
+                "status" in error &&
+                error.status === 400 &&
+                error.message.includes("Alert is already dismissed")) {
+                console.debug(`Alert already dismissed: ${url}`);
+                return;
+            }
+            // Re-throw any other errors
+            throw error;
+        }
+    });
+}
+function get_rules_from_run(run) {
+    var _a, _b, _c;
+    const rules = [];
+    // Index 0: driver rules
+    const driver_rules = [];
+    for (const rule of ((_b = (_a = run.tool) === null || _a === void 0 ? void 0 : _a.driver) === null || _b === void 0 ? void 0 : _b.rules) || []) {
+        driver_rules.push(rule.id);
+    }
+    rules.push(driver_rules);
+    // Index 1+: extension rules
+    for (const ext of ((_c = run.tool) === null || _c === void 0 ? void 0 : _c.extensions) || []) {
+        const ext_rules = [];
+        for (const rule of ext.rules || []) {
+            ext_rules.push(rule.id);
+        }
+        rules.push(ext_rules);
+    }
+    return rules;
+}
+function filter_alerts(should_be_dismissed, predicate, sarif) {
+    const alerts = [];
+    let rules;
+    for (const run of sarif.runs) {
+        rules = get_rules_from_run(run);
+        for (const result of run.results || []) {
+            const properties = result.properties;
+            if (should_be_dismissed.has(alert_identifier(rules, result))) {
+                if (properties != null) {
+                    const alertUrl = properties["github/alertUrl"];
+                    if (predicate(alertUrl)) {
+                        alerts.push(alertUrl);
+                    }
+                }
+            }
+        }
+    }
+    return alerts;
+}
+function alert_identifier(rules, result) {
+    var _a, _b;
+    let ruleId;
+    if ("ruleId" in result) {
+        ruleId = result.ruleId;
+    }
+    else if ("id" in result.rule) {
+        ruleId = result.rule.id;
+    }
+    else {
+        const toolComponentIndex = "toolComponent" in result.rule ? result.rule.toolComponent.index + 1 : 0;
+        const ruleIndex = result.rule.index;
+        ruleId = rules[toolComponentIndex][ruleIndex];
+    }
+    const physicalLocation = result.locations[0].physicalLocation;
+    const filePath = physicalLocation.artifactLocation.uri;
+    const startLine = ((_a = physicalLocation.region) === null || _a === void 0 ? void 0 : _a.startLine) || 0;
+    const startColumn = ((_b = physicalLocation.region) === null || _b === void 0 ? void 0 : _b.startColumn) || 1;
+    return [ruleId, filePath, startLine, startColumn].join(";");
+}
+function split_alerts(sarif) {
+    const normal = new Set();
+    const suppressed = new Set();
+    for (const run of sarif.runs) {
+        const rules = get_rules_from_run(run);
+        for (const result of run.results || []) {
+            if (result.suppressions != null && result.suppressions.length > 0) {
+                suppressed.add(alert_identifier(rules, result));
+            }
+            else {
+                normal.add(alert_identifier(rules, result));
+            }
+        }
+    }
+    return [normal, suppressed];
+}
+function wait_for_upload(client, nwo, sarif_id) {
+    return __awaiter(this, void 0, void 0, function* () {
+        for (let i = 0; i < 10; i++) {
+            if (i > 0) {
+                yield new Promise((r) => setTimeout(r, 5000 * i));
+            }
+            let response;
+            try {
+                response = yield client.rest.codeScanning.getSarif(Object.assign(Object.assign({}, nwo), { sarif_id }));
+            }
+            catch (error) {
+                console.warn(error);
+                continue;
+            }
+            const upload_status = response.data;
+            if (upload_status.processing_status == "complete") {
+                if (upload_status.analyses_url != null) {
+                    return upload_status.analyses_url;
+                }
+                throw Error((upload_status.errors || []).join("\n"));
+            }
+        }
+        throw Error(`Processing of upload is taking too long: ${sarif_id}`);
+    });
+}
+/* Run codeql analyze with suppression queries in addition to normal ones
+ * Upload the SARIF file and get the sarif - upload - id
+ * Use sarif - upload - id to check and wait until upload is processed
+ * Fetch analysis corresponding to sarif - upload - id
+ * Fetch analysis in SARIF form
+ * Use API to fetch list of already dismissed alerts
+ * Now:
+ * find alerts in the original SARIF file that have non - empty`suppressions[]`
+ * match those alerts to the SARIF file fetch through the API(by rule and location) and extract the `github/alertUrl` property
+ * remove`github/alertUrl` that are in the list of already dismissed alerts
+ * for each remaining`github/alertUrl` make a PATCH request to set the dismissal state and reason
+ */
+function run() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const sarif_id = core.getInput("sarif-id", { required: true });
+        const sarifPath = core.getInput("sarif-file", { required: true });
+        const api_token = core.getInput("token") || getRequiredEnvParam("GITHUB_TOKEN");
+        const apiURL = getRequiredEnvParam("GITHUB_API_URL");
+        const retryingOctokit = utils_1.GitHub.plugin(retry.retry);
+        const client = new retryingOctokit((0, utils_1.getOctokitOptions)(api_token, {
+            baseUrl: apiURL,
+            userAgent: "dismiss-alerts",
+            log: (0, console_log_level_1.default)({ level: "debug" }),
+        }));
+        const nwo = github.context.repo;
+        const analyses_url = yield wait_for_upload(client, nwo, sarif_id);
+        const response1 = yield client.request({ url: analyses_url });
+        const analyses = response1.data;
+        const analysis_url = analyses[0]["url"];
+        const response2 = yield client.request({
+            url: analysis_url,
+            headers: { Accept: "application/sarif+json" },
+        });
+        const sarif2 = response2.data;
+        // Get SARIF file paths (supports both file and directory)
+        const sarifFiles = getSarifFilePaths(sarifPath);
+        core.debug(`Found ${sarifFiles.length} SARIF file(s) to process`);
+        // Merge all SARIF files into a single object
+        const sarif1 = mergeSarifFiles(sarifFiles);
+        const [normal, suppressed] = split_alerts(sarif1);
+        const all_dismissed_alerts = yield client.paginate(client.rest.codeScanning.listAlertsForRepo, Object.assign(Object.assign({}, nwo), { state: "dismissed", per_page: 100 }));
+        const dismissed_alerts = new Map(all_dismissed_alerts.map((x) => [x.url, x.dismissed_comment || undefined]));
+        const to_dismiss = filter_alerts(suppressed, (alertUrl) => !dismissed_alerts.has(alertUrl), sarif2);
+        for (const alert of to_dismiss) {
+            console.debug(`Dismissing alert: ${alert}`);
+            const payload = {
+                state: "dismissed",
+                dismissed_reason: "won't fix",
+                dismissed_comment: SUPPRESSED_VIA_SARIF,
+            };
+            yield patch_alert(client, alert, payload);
+        }
+        const to_reopen = filter_alerts(normal, (alertUrl) => dismissed_alerts.get(alertUrl) === SUPPRESSED_VIA_SARIF, sarif2);
+        for (const alert of to_reopen) {
+            console.debug(`Re-opening alert: ${alert}`);
+            const payload = {
+                state: "open",
+            };
+            yield patch_alert(client, alert, payload);
+        }
+    });
+}
+void run();
+
+
+/***/ }),
+
 /***/ 2613:
 /***/ ((module) => {
 
@@ -34753,7 +34753,7 @@ module.exports = parseParams
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(5915);
+/******/ 	var __webpack_exports__ = __nccwpck_require__(1730);
 /******/ 	module.exports = __webpack_exports__;
 /******/ 	
 /******/ })()

@@ -38058,22 +38058,15 @@ function getSarifFilePaths(sarifPath) {
     }
 }
 /**
- * Merge multiple SARIF files into a single SARIF object.
- * Combines all runs from all files.
+ * Merge multiple already-parsed SARIF objects into a single SARIF object.
+ * Combines all runs from all of the provided SARIF objects.
  */
-function mergeSarifFiles(sarifFiles) {
+function mergeSarifObjects(sarifContents) {
     const mergedSarif = {
         version: "2.1.0",
         runs: [],
     };
-    for (const filePath of sarifFiles) {
-        let sarifContent;
-        try {
-            sarifContent = JSON.parse(external_fs_namespaceObject.readFileSync(filePath, "utf8"));
-        }
-        catch (error) {
-            throw new Error(`Failed to parse SARIF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
-        }
+    for (const sarifContent of sarifContents) {
         if (mergedSarif.version === "2.1.0" && sarifContent.version) {
             mergedSarif.version = sarifContent.version;
         }
@@ -38082,6 +38075,21 @@ function mergeSarifFiles(sarifFiles) {
         }
     }
     return mergedSarif;
+}
+/**
+ * Merge multiple SARIF files into a single SARIF object.
+ * Combines all runs from all files.
+ */
+function mergeSarifFiles(sarifFiles) {
+    const sarifContents = sarifFiles.map((filePath) => {
+        try {
+            return JSON.parse(external_fs_namespaceObject.readFileSync(filePath, "utf8"));
+        }
+        catch (error) {
+            throw new Error(`Failed to parse SARIF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+        }
+    });
+    return mergeSarifObjects(sarifContents);
 }
 async function patch_alert(client, url, payload) {
     try {
@@ -38236,12 +38244,18 @@ async function run() {
     const analyses_url = await wait_for_upload(client, nwo, sarif_id);
     const response1 = await client.request({ url: analyses_url });
     const analyses = response1.data;
-    const analysis_url = analyses[0]["url"];
-    const response2 = await client.request({
-        url: analysis_url,
-        headers: { Accept: "application/sarif+json" },
-    });
-    const sarif2 = response2.data;
+    core_debug(`Found ${analyses.length} analysis(es) for sarif-id ${sarif_id}`);
+    // A single SARIF upload can contain multiple runs (e.g. when custom query
+    // packs such as an alert-suppression query are analyzed alongside the
+    // main analysis). Each run is returned as a separate analysis, so fetch
+    // and merge them all to avoid missing alerts from any of them.
+    const sarif2 = mergeSarifObjects(await Promise.all(analyses.map(async (analysis) => {
+        const response = await client.request({
+            url: analysis.url,
+            headers: { Accept: "application/sarif+json" },
+        });
+        return response.data;
+    })));
     // Get SARIF file paths (supports both file and directory)
     const sarifFiles = getSarifFilePaths(sarifPath);
     core_debug(`Found ${sarifFiles.length} SARIF file(s) to process`);

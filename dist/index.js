@@ -38159,11 +38159,22 @@ function alert_identifier_from_api_alert(alert) {
     const startColumn = location?.start_column || 1;
     return [ruleId, filePath, startLine, startColumn].join(";");
 }
+// We need both open alerts (to dismiss) and dismissed alerts (to detect
+// re-opens). The `state` query param only accepts a single value, and its
+// default is not reliably "all states" across API versions - the REST API
+// reference documents it as defaulting to open alerts only - so each state
+// we care about is requested explicitly rather than depending on whatever
+// the default happens to do.
+const ALERT_STATES = ["open", "dismissed"];
 /**
  * Fetch all code scanning alerts for the repository, optionally scoped to
  * one or more tool names (extracted from the local SARIF - never
  * hardcoded, since dismiss-alerts supports any SARIF-producing tool), and
  * index them by the same identifier scheme used for local SARIF results.
+ *
+ * Queries both "open" and "dismissed" states explicitly (see ALERT_STATES)
+ * so that both the to-dismiss and to-reopen matching below have the alert
+ * data they need, regardless of the API's default `state` filtering.
  */
 async function fetch_alerts_by_identifier(client, nwo, toolNames) {
     const alerts_by_identifier = new Map();
@@ -38171,19 +38182,22 @@ async function fetch_alerts_by_identifier(client, nwo, toolNames) {
     // defensive), fall back to an unscoped fetch of all alerts.
     const toolFilters = toolNames.length > 0 ? toolNames : [undefined];
     for (const tool_name of toolFilters) {
-        info(tool_name
-            ? `Fetching code scanning alerts for tool: ${tool_name}`
-            : "Fetching code scanning alerts (no tool name found in SARIF; unscoped)");
-        const alerts = (await client.paginate(client.rest.codeScanning.listAlertsForRepo, {
-            ...nwo,
-            ...(tool_name ? { tool_name } : {}),
-            per_page: 100,
-        }));
-        for (const alert of alerts) {
-            alerts_by_identifier.set(alert_identifier_from_api_alert(alert), alert);
+        for (const state of ALERT_STATES) {
+            info(tool_name
+                ? `Fetching ${state} code scanning alerts for tool: ${tool_name}`
+                : `Fetching ${state} code scanning alerts (no tool name found in SARIF; unscoped)`);
+            const alerts = (await client.paginate(client.rest.codeScanning.listAlertsForRepo, {
+                ...nwo,
+                ...(tool_name ? { tool_name } : {}),
+                state,
+                per_page: 100,
+            }));
+            for (const alert of alerts) {
+                alerts_by_identifier.set(alert_identifier_from_api_alert(alert), alert);
+            }
         }
     }
-    info(`Indexed ${alerts_by_identifier.size} code scanning alert(s) across ${toolFilters.length} tool filter(s)`);
+    info(`Indexed ${alerts_by_identifier.size} code scanning alert(s) across ${toolFilters.length} tool filter(s) and ${ALERT_STATES.length} state filter(s)`);
     return alerts_by_identifier;
 }
 function match_alerts(should_be_dismissed, predicate, alerts_by_identifier) {

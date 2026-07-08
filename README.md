@@ -8,7 +8,7 @@ There are two required input fields for this action:
 
 ## High Level Architecture 
 
-The `suppressions[]` object in the sarif is used to create a list of suppressed alerts. The API's are used to retrieve a list of already dismissed alerts. These two lists are mapped using the alert identifier (rule and location).  A comparison is done between these lists and any alert that has not already been dismissed is updated with a PATCH request using the `github/alertUrl` property. The alert `state` is updated to `dismissed` with the `dismissed reason` being `won't fix` and the `dismissed comment` being `Suppressed via SARIF`. Vice versa, any alerts that are dismissed with a comment `Suppressed via SARIF` in the Code Scanning UI are re-opened, if they are no longer marked as suppressed in the SARIF file.
+The local SARIF file that was just uploaded is parsed into two sets: results with a non-empty `suppressions[]` (candidates to dismiss) and results with none (candidates to re-open). Separately, the [Code Scanning Alerts API](https://docs.github.com/en/rest/code-scanning/code-scanning#list-code-scanning-alerts-for-a-repository) is queried for every open and dismissed alert in the repository (scoped by tool name, read from the SARIF itself). These two lists are mapped using the same alert identifier (rule id + file + line + column). Any suppressed result whose matching alert isn't already dismissed is updated with a PATCH request to that alert's own API `url`, setting `state` to `dismissed`, `dismissed reason` to `won't fix`, and `dismissed comment` to `Suppressed via SARIF`. Vice versa, any alert dismissed with the comment `Suppressed via SARIF` that no longer has a matching suppressed result in the SARIF is re-opened.
 
 Here's the same flow end-to-end, from the moment a developer adds a suppression comment to the moment the alert is dismissed (or re-opened) on GitHub:
 
@@ -198,7 +198,19 @@ threadsafety = 1
 paramstyle = "pyformat"
 ```
 
-`py/unused-global-variable` fires because `apilevel` looks unused within this file, but it's actually a [PEP 249](https://peps.python.org/pep-0249/) DB-API module-level constant that other code is expected to read - a legitimate false positive. The `# codeql[py/unused-global-variable]` comment on the line above tells CodeQL's `AlertSuppression.ql` to mark that specific result as suppressed, which `dismiss-alerts` then picks up from the SARIF and dismisses on GitHub with the comment `Suppressed via SARIF`.
+All three of these module-level constants trigger `py/unused-global-variable` - they're never read within this file, but they're legitimate [PEP 249](https://peps.python.org/pep-0249/) DB-API constants that other code is expected to read, so all three are false positives. Only `apilevel` is actually suppressed here, though: a `codeql[rule-id]` comment covers **only the single line directly below it**, so the comment above only applies to `apilevel`. `threadsafety` and `paramstyle` have no comment of their own and stay open. To suppress all three, each needs its own comment:
+
+```python
+# codeql[py/unused-global-variable]
+apilevel = "2.0"
+# codeql[py/unused-global-variable]
+threadsafety = 1
+# codeql[py/unused-global-variable]
+paramstyle = "pyformat"
+```
+
+> [!TIP]
+> This is a common gotcha: a single `codeql[rule-id]` comment does not "spread" over a whole block of code - it applies to the next line only. CodeQL's `AlertSuppression.ql` tags each suppressed *result* individually with `suppressions[]` in the SARIF, and `dismiss-alerts` only dismisses results it finds tagged that way.
 
 > [!TIP]
 > Prefer the `codeql[rule-id]` style (comment on the line *before* the alert) over `lgtm[rule-id]` (comment on the *same* line). Because code scanning identifies an alert partly by the hash of its own line's contents, adding a same-line comment changes that line and therefore the alert's hash - closing the original alert as `fixed` and opening a brand-new one, which is then immediately dismissed. Placing the suppression comment on the previous line avoids this churn entirely. See the note below for more detail.

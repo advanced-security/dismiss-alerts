@@ -1,12 +1,13 @@
-# Dismiss Alerts Action 
+# Dismiss Alerts Action
 
-The `dismiss alerts` action [dismisses](https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/managing-code-scanning-alerts-for-your-repository) code scanning alerts based on the `suppression` [property](https://docs.oasis-open.org/sarif/sarif/v2.0/csprd02/sarif-v2.0-csprd02.html#_Toc10127852) in the SARIF file. 
+The `dismiss alerts` action [dismisses](https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/managing-code-scanning-alerts-for-your-repository) code scanning alerts based on the `suppression` [property](https://docs.oasis-open.org/sarif/sarif/v2.0/csprd02/sarif-v2.0-csprd02.html#_Toc10127852) in the SARIF file.
 
-There are two required input fields for this action: 
+There are two required input fields for this action:
+
 - `sarif-upload-id` - the SARIF identifier
 - `sarif-file` - the location of the SARIF file or directory containing SARIF files. When a directory is provided, all `.sarif` and `.sarif.json` files will be processed recursively.
 
-## High Level Architecture 
+## High Level Architecture
 
 The local SARIF file that was just uploaded is parsed into two sets: results with a non-empty `suppressions[]` (candidates to dismiss) and results with none (candidates to re-open). Separately, the [Code Scanning Alerts API](https://docs.github.com/en/rest/code-scanning/code-scanning#list-code-scanning-alerts-for-a-repository) is queried for every open and dismissed alert in the repository (scoped by tool name, read from the SARIF itself). These two lists are mapped using the same alert identifier (rule id + file + line + column). Any suppressed result whose matching alert isn't already dismissed is updated with a PATCH request to that alert's own API `url`, setting `state` to `dismissed`, `dismissed reason` to `won't fix`, and `dismissed comment` to `Suppressed via SARIF`. Vice versa, any alert dismissed with the comment `Suppressed via SARIF` that no longer has a matching suppressed result in the SARIF is re-opened.
 
@@ -27,11 +28,11 @@ flowchart TD
     J -->|yes| L["♻️ Re-open<br/>the alert"]
 ```
 
-## Getting Started 
+## Getting Started
 
 CodeQL populates the `suppression` property in its SARIF output based on the results of `alert-suppression` queries. A user can provide their own custom alert-suppression query, or use the ones that we provide (`//lgtm` or `//codeql` style comments).
 
-### Example - CodeQL 
+### Example - CodeQL
 
 ```yaml
 name: "CodeQL Advanced"
@@ -92,7 +93,7 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}
 ```
 
-### Third party produced SARIF file 
+### Third party produced SARIF file
 
 The `dismiss-alerts` action can be used with SARIF files from third party providers.
 
@@ -178,9 +179,9 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}        
 ```
 
-## Features and Limitations 
+## Features and Limitations
 
-### How suppression comments work 
+### How suppression comments work
 
 CodeQL populates the SARIF `suppressions[]` property by running a special *alert-suppression* query alongside your normal queries. Each language has its own copy, e.g. [`python/ql/src/AlertSuppression.ql`](https://github.com/github/codeql/blob/main/python/ql/src/AlertSuppression.ql) for Python (every other language has an equivalent, such as [`javascript/ql/src/AlertSuppression.ql`](https://github.com/github/codeql/blob/main/javascript/ql/src/AlertSuppression.ql) or [`java/ql/src/AlertSuppression.ql`](https://github.com/github/codeql/blob/main/java/ql/src/AlertSuppression.ql)). This query looks for specially-formatted comments in your source code and, when one matches a rule that fired, tags that result's SARIF entry with `suppressions[]` - which is exactly what `dismiss-alerts` reads to decide what to dismiss.
 
@@ -211,10 +212,8 @@ paramstyle = "pyformat"
 
 > [!TIP]
 > This is a common gotcha: a single `codeql[rule-id]` comment does not "spread" over a whole block of code - it applies to the next line only. CodeQL's `AlertSuppression.ql` tags each suppressed *result* individually with `suppressions[]` in the SARIF, and `dismiss-alerts` only dismisses results it finds tagged that way.
+>
+> Also prefer the `codeql[rule-id]` style (comment on the line *before* the alert) over `lgtm[rule-id]` (comment on the *same* line). Because code scanning identifies an alert partly by the hash of its own line's contents, adding a same-line comment changes that line and therefore the alert's hash - closing the original alert as `fixed` and opening a brand-new one, which is then immediately dismissed. Placing the suppression comment on the previous line avoids this churn entirely. See the note below for more detail.
 
-> [!TIP]
-> Prefer the `codeql[rule-id]` style (comment on the line *before* the alert) over `lgtm[rule-id]` (comment on the *same* line). Because code scanning identifies an alert partly by the hash of its own line's contents, adding a same-line comment changes that line and therefore the alert's hash - closing the original alert as `fixed` and opening a brand-new one, which is then immediately dismissed. Placing the suppression comment on the previous line avoids this churn entirely. See the note below for more detail.
-
-
-- This action should run only on the default branch as the dismissal status of an alert is a global property. If this action is run on a push event to a feature branch or pull request then the suppressed alerts will also be dismissed on the default branch. 
+- This action should run only on the default branch as the dismissal status of an alert is a global property. If this action is run on a push event to a feature branch or pull request then the suppressed alerts will also be dismissed on the default branch.
 - When a suppression comment is added on the line that contains an alert then this alert will be closed and a duplicate alert will be marked as fixed. This is because code scanning uses the hash of the alert's line contents as the unique identifier. The inserted suppression comment changes the contents of the line, and therefore also the hash of the alert. Since the alert hash no longer matches the original alert is considered `fixed` and a new alert is created in its place. The new alert is immediately marked as `dismissed` as a result of the suppression comment. To avoid this problem it is recommended to use a suppression style that allows placing suppression markers on the line before an alert.

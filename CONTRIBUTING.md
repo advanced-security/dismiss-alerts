@@ -1,4 +1,4 @@
-## Contributing
+# Contributing
 
 [fork]: https://github.com/github/REPO/fork
 [pr]: https://github.com/github/REPO/compare
@@ -13,14 +13,15 @@ Please note that this project is released with a [Contributor Code of Conduct][c
 ## Submitting a pull request
 
 0. [Fork][fork] and clone the repository
-0. Configure and install the dependencies: `npm install`
-0. Create a new branch: `git checkout -b my-branch-name`
-0. Make your change, add tests, and make sure the tests still pass
-0. Push to your fork and [submit a pull request][pr]
-0. Ensure the required checks pass. 
-0. Pat your self on the back and wait for your pull request to be reviewed and merged.
+1. Configure and install the dependencies: `npm install`
+2. Create a new branch: `git checkout -b my-branch-name`
+3. Make your change, add tests, and make sure the tests still pass
+4. Push to your fork and [submit a pull request][pr]
+5. Ensure the required checks pass.
+6. Pat yourself on the back and wait for your pull request to be reviewed and merged.
 
 Here are a few things you can do that will increase the likelihood of your pull request being accepted:
+
 - Write tests.
 - Keep your change as focused as possible. If there are multiple changes you would like to make that are not dependent upon each other, consider submitting them as separate pull requests.
 - Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).

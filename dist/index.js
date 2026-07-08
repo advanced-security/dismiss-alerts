@@ -34894,7 +34894,7 @@ function notice(message, properties = {}) {
  * @param message info message
  */
 function info(message) {
-    process.stdout.write(message + os.EOL);
+    process.stdout.write(message + external_os_namespaceObject.EOL);
 }
 /**
  * Begin an output group.
@@ -38130,6 +38130,22 @@ async function patch_alert(client, url, payload) {
         throw error;
     }
 }
+/**
+ * Get the distinct set of tool names (e.g. "CodeQL", or any other SARIF
+ * producer) that appear in a SARIF file's runs. dismiss-alerts is not
+ * CodeQL-specific, so this must be read from the SARIF itself rather than
+ * assumed - it's used to scope the code scanning alerts API lookup below.
+ */
+function get_tool_names(sarif) {
+    const names = new Set();
+    for (const run of sarif.runs) {
+        const name = run.tool?.driver?.name;
+        if (name) {
+            names.add(name);
+        }
+    }
+    return [...names];
+}
 function get_rules_from_run(run) {
     const rules = [];
     // Index 0: driver rules
@@ -38148,21 +38164,67 @@ function get_rules_from_run(run) {
     }
     return rules;
 }
-function filter_alerts(should_be_dismissed, predicate, sarif) {
-    const alerts = [];
-    let rules;
-    for (const run of sarif.runs) {
-        rules = get_rules_from_run(run);
-        for (const result of run.results || []) {
-            const properties = result.properties;
-            if (should_be_dismissed.has(alert_identifier(rules, result))) {
-                if (properties != null) {
-                    const alertUrl = properties["github/alertUrl"];
-                    if (predicate(alertUrl)) {
-                        alerts.push(alertUrl);
-                    }
-                }
+/**
+ * Build the same `ruleId;filePath;startLine;startColumn` identifier used for
+ * local SARIF results (see alert_identifier), but from an alerts-list API
+ * alert instead. This lets us match alerts without re-fetching the analysis
+ * as a SARIF export, which is the racy call this whole approach avoids.
+ */
+function alert_identifier_from_api_alert(alert) {
+    const ruleId = alert.rule?.id || "";
+    const location = alert.most_recent_instance?.location;
+    const filePath = location?.path || "";
+    const startLine = location?.start_line || 0;
+    const startColumn = location?.start_column || 1;
+    return [ruleId, filePath, startLine, startColumn].join(";");
+}
+// We need both open alerts (to dismiss) and dismissed alerts (to detect
+// re-opens). The `state` query param only accepts a single value, and its
+// default is not reliably "all states" across API versions - the REST API
+// reference documents it as defaulting to open alerts only - so each state
+// we care about is requested explicitly rather than depending on whatever
+// the default happens to do.
+const ALERT_STATES = ["open", "dismissed"];
+/**
+ * Fetch all code scanning alerts for the repository, optionally scoped to
+ * one or more tool names (extracted from the local SARIF - never
+ * hardcoded, since dismiss-alerts supports any SARIF-producing tool), and
+ * index them by the same identifier scheme used for local SARIF results.
+ *
+ * Queries both "open" and "dismissed" states explicitly (see ALERT_STATES)
+ * so that both the to-dismiss and to-reopen matching below have the alert
+ * data they need, regardless of the API's default `state` filtering.
+ */
+async function fetch_alerts_by_identifier(client, nwo, toolNames) {
+    const alerts_by_identifier = new Map();
+    // If we couldn't determine a tool name from the SARIF (unexpected, but
+    // defensive), fall back to an unscoped fetch of all alerts.
+    const toolFilters = toolNames.length > 0 ? toolNames : [undefined];
+    for (const tool_name of toolFilters) {
+        for (const state of ALERT_STATES) {
+            info(tool_name
+                ? `Fetching ${state} code scanning alerts for tool: ${tool_name}`
+                : `Fetching ${state} code scanning alerts (no tool name found in SARIF; unscoped)`);
+            const alerts = (await client.paginate(client.rest.codeScanning.listAlertsForRepo, {
+                ...nwo,
+                ...(tool_name ? { tool_name } : {}),
+                state,
+                per_page: 100,
+            }));
+            for (const alert of alerts) {
+                alerts_by_identifier.set(alert_identifier_from_api_alert(alert), alert);
             }
+        }
+    }
+    info(`Indexed ${alerts_by_identifier.size} code scanning alert(s) across ${toolFilters.length} tool filter(s) and ${ALERT_STATES.length} state filter(s)`);
+    return alerts_by_identifier;
+}
+function match_alerts(should_be_dismissed, predicate, alerts_by_identifier) {
+    const alerts = [];
+    for (const identifier of should_be_dismissed) {
+        const alert = alerts_by_identifier.get(identifier);
+        if (alert != null && predicate(alert)) {
+            alerts.push(alert.url);
         }
     }
     return alerts;
@@ -38228,17 +38290,22 @@ async function wait_for_upload(client, nwo, sarif_id) {
     }
     throw Error(`Processing of upload is taking too long: ${sarif_id}`);
 }
-/* Run codeql analyze with suppression queries in addition to normal ones
- * Upload the SARIF file and get the sarif - upload - id
- * Use sarif - upload - id to check and wait until upload is processed
- * Fetch analysis corresponding to sarif - upload - id
- * Fetch analysis in SARIF form
- * Use API to fetch list of already dismissed alerts
- * Now:
- * find alerts in the original SARIF file that have non - empty`suppressions[]`
- * match those alerts to the SARIF file fetch through the API(by rule and location) and extract the `github/alertUrl` property
- * remove`github/alertUrl` that are in the list of already dismissed alerts
- * for each remaining`github/alertUrl` make a PATCH request to set the dismissal state and reason
+/* Run codeql analyze (or any other SARIF-producing tool) with suppression
+ * queries in addition to normal ones.
+ * Upload the SARIF file and get the sarif-upload-id.
+ * Use sarif-upload-id to check and wait until upload is processed.
+ * Parse the *local* SARIF file (the one we just uploaded) to find:
+ *   - alerts with non-empty `suppressions[]` (candidates to dismiss)
+ *   - alerts with no suppressions (candidates to re-open)
+ * Fetch the current code scanning alerts via the REST API (scoped to the
+ * tool name(s) found in the local SARIF - never hardcoded, since
+ * dismiss-alerts is not CodeQL-specific), and match them to the local SARIF
+ * results by rule + location. This intentionally avoids re-fetching the
+ * analysis as a SARIF export (a separate, asynchronously-computed artifact
+ * that can lag arbitrarily far behind upload completion - see
+ * advanced-security/dismiss-alerts#295).
+ * For each matched alert, make a PATCH request to set the dismissal state
+ * and reason.
  */
 async function run() {
     const sarif_id = getInput("sarif-id", { required: true });
@@ -38252,31 +38319,23 @@ async function run() {
         log: console_log_level({ level: "debug" }),
     }));
     const nwo = github_context.repo;
-    const analyses_url = await wait_for_upload(client, nwo, sarif_id);
-    const response1 = await client.request({ url: analyses_url });
-    const analyses = response1.data;
-    const analysis_url = analyses[0]["url"];
-    const response2 = await client.request({
-        url: analysis_url,
-        headers: { Accept: "application/sarif+json" },
-    });
-    const sarif2 = response2.data;
+    // Confirms the upload finished processing without errors. We deliberately
+    // do NOT use this to re-fetch the analysis as a SARIF export - that export
+    // is racy (see advanced-security/dismiss-alerts#295) - we match against
+    // the alerts API instead, below.
+    await wait_for_upload(client, nwo, sarif_id);
     // Get SARIF file paths (supports both file and directory)
     const sarifFiles = getSarifFilePaths(sarifPath);
     core_debug(`Found ${sarifFiles.length} SARIF file(s) to process`);
     // Merge all SARIF files into a single object
     const sarif1 = mergeSarifFiles(sarifFiles);
     const [normal, suppressed] = split_alerts(sarif1);
-    const all_dismissed_alerts = await client.paginate(client.rest.codeScanning.listAlertsForRepo, {
-        ...nwo,
-        state: "dismissed",
-        per_page: 100,
-    });
-    const dismissed_alerts = new Map(all_dismissed_alerts.map((x) => [
-        x.url,
-        x.dismissed_comment || undefined,
-    ]));
-    const to_dismiss = filter_alerts(suppressed, (alertUrl) => !dismissed_alerts.has(alertUrl), sarif2);
+    // Scope the alerts lookup to whichever tool(s) produced this SARIF -
+    // read from the SARIF itself, since dismiss-alerts supports any
+    // SARIF-producing tool, not just CodeQL.
+    const toolNames = get_tool_names(sarif1);
+    const alerts_by_identifier = await fetch_alerts_by_identifier(client, nwo, toolNames);
+    const to_dismiss = match_alerts(suppressed, (alert) => alert.state !== "dismissed", alerts_by_identifier);
     for (const alert of to_dismiss) {
         console.debug(`Dismissing alert: ${alert}`);
         const payload = {
@@ -38286,7 +38345,8 @@ async function run() {
         };
         await patch_alert(client, alert, payload);
     }
-    const to_reopen = filter_alerts(normal, (alertUrl) => dismissed_alerts.get(alertUrl) === SUPPRESSED_VIA_SARIF, sarif2);
+    const to_reopen = match_alerts(normal, (alert) => alert.state === "dismissed" &&
+        alert.dismissed_comment === SUPPRESSED_VIA_SARIF, alerts_by_identifier);
     for (const alert of to_reopen) {
         console.debug(`Re-opening alert: ${alert}`);
         const payload = {

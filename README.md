@@ -14,17 +14,17 @@ Here's the same flow end-to-end, from the moment a developer adds a suppression 
 
 ```mermaid
 flowchart TD
-    A["👩‍💻 Developer adds a suppression comment<br/><code>&num; codeql[py/unused-global-variable]</code>"] --> B["🔍 CodeQL (or another SARIF tool) analyzes the code<br/>running its normal queries <em>plus</em> an alert-suppression query"]
-    B --> C["📄 SARIF file is produced<br/>matching results get a <code>suppressions[]</code> entry"]
-    C --> D["☁️ SARIF is uploaded to GitHub<br/>(codeql-action/analyze or upload-sarif)"]
-    D --> E["⏳ dismiss-alerts waits for GitHub<br/>to finish processing the upload"]
-    E --> F["🗂️ dismiss-alerts parses the local SARIF file<br/>splitting results into: <b>suppressed</b> vs. <b>normal</b>"]
-    F --> G["🌐 dismiss-alerts fetches the current alerts<br/>via the Code Scanning Alerts API"]
-    G --> H["🔗 Match SARIF results to live alerts<br/>by rule id + file + line + column"]
-    H --> I{"Suppressed in SARIF,<br/>but still open on GitHub?"}
-    H --> J{"Not suppressed in SARIF,<br/>but previously dismissed by us?"}
-    I -->|yes| K["✅ PATCH: dismiss the alert<br/>reason: won't fix<br/>comment: Suppressed via SARIF"]
-    J -->|yes| L["♻️ PATCH: re-open the alert"]
+    A["👩‍💻 Developer adds<br/>a suppression<br/>comment"] --> B["🔍 CodeQL runs its<br/>normal queries plus<br/>an alert-suppression<br/>query"]
+    B --> C["📄 SARIF produced:<br/>matches get a<br/>suppressions[] entry"]
+    C --> D["☁️ SARIF uploaded<br/>to GitHub"]
+    D --> E["⏳ dismiss-alerts waits<br/>for upload<br/>processing to finish"]
+    E --> F["🗂️ dismiss-alerts parses<br/>the local SARIF:<br/>suppressed vs. normal"]
+    F --> G["🌐 dismiss-alerts fetches<br/>current alerts from<br/>the Alerts API"]
+    G --> H["🔗 Match by rule id,<br/>file, line, column"]
+    H --> I{"Suppressed,<br/>still open?"}
+    H --> J{"Not suppressed,<br/>was dismissed?"}
+    I -->|yes| K["✅ Dismiss alert<br/>won't fix /<br/>Suppressed via SARIF"]
+    J -->|yes| L["♻️ Re-open<br/>the alert"]
 ```
 
 ## Getting Started 

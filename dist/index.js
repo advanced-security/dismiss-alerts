@@ -35075,6 +35075,9 @@ function getProxyFetch(destinationUrl) {
 function getApiBaseUrl() {
     return process.env['GITHUB_API_URL'] || 'https://api.github.com';
 }
+// Added in @actions/github 9.1.1: appends the ACTIONS_ORCHESTRATION_ID env var to the
+// Octokit user-agent string so GitHub can correlate API calls to workflow runs.
+// This function originates from @actions/github/lib/internal/utils.js (not in src/).
 function getUserAgentWithOrchestrationId(baseUserAgent) {
     var _a;
     const orchId = (_a = process.env['ACTIONS_ORCHESTRATION_ID']) === null || _a === void 0 ? void 0 : _a.trim();

@@ -29,10 +29,10 @@
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
     "@octokit/plugin-retry": "^6.0.1",
-    "console-log-level": "^1.4.1",
-    "nock": "^14.0.15"
+    "console-log-level": "^1.4.1"
   },
   "devDependencies": {
+    "nock": "^14.0.15",
     "@eslint/js": "^9.39.2",
     "@types/console-log-level": "^1.4.5",
     "@types/jest": "^29.5.14",

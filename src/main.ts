@@ -1,20 +1,21 @@
 import * as core from "@actions/core";
-import * as github from "@actions/github";
-import { GitHub, getOctokitOptions } from "@actions/github/lib/utils";
-import * as retry from "@octokit/plugin-retry";
-import consoleLogLevel from "console-log-level";
 import * as fs from "fs";
 import * as path from "path";
 
 const SUPPRESSED_VIA_SARIF = "Suppressed via SARIF";
 
-type GitHubClient = InstanceType<typeof GitHub>;
-interface SarifFile {
+// Type-only import: resolved purely at compile time, so it doesn't force a
+// runtime import of "@actions/github/lib/utils" (and the octokit stack it
+// pulls in) just to import the pure helper functions below for testing.
+export type GitHubClient = InstanceType<
+  (typeof import("@actions/github/lib/utils"))["GitHub"]
+>;
+export interface SarifFile {
   version?: string | null;
   runs: Array<SarifRun>;
 }
 
-interface SarifRun {
+export interface SarifRun {
   tool?: {
     driver?: {
       name?: string;
@@ -31,19 +32,19 @@ interface SarifRun {
   results?: SarifResult[];
 }
 
-interface SarifRule {
+export interface SarifRule {
   id: string;
-  index: number;
-  toolComponent: { index: number };
+  index?: number;
+  toolComponent?: { index: number };
 }
 
-interface SarifRuleReference {
+export interface SarifRuleReference {
   id?: string;
   index: number;
   toolComponent: { index: number };
 }
 
-interface SarifResult {
+export interface SarifResult {
   properties?: {
     "github/alertUrl": string;
   };
@@ -66,18 +67,18 @@ interface SarifResult {
   suppressions: Array<{ kind: string }>;
 }
 
-interface Nwo {
+export interface Nwo {
   owner: string;
   repo: string;
 }
 
-interface PatchPayload {
+export interface PatchPayload {
   state: "open" | "dismissed";
   dismissed_reason?: string;
   dismissed_comment?: string;
 }
 
-type AlertIdentifier = string;
+export type AlertIdentifier = string;
 /**
  * Get an environment parameter, but throw an error if it is not set.
  */
@@ -173,7 +174,7 @@ function mergeSarifFiles(sarifFiles: string[]): SarifFile {
   return mergedSarif;
 }
 
-async function patch_alert(
+export async function patch_alert(
   client: GitHubClient,
   url: string,
   payload: PatchPayload,
@@ -213,7 +214,7 @@ async function patch_alert(
  * CodeQL-specific, so this must be read from the SARIF itself rather than
  * assumed - it's used to scope the code scanning alerts API lookup below.
  */
-function get_tool_names(sarif: SarifFile): string[] {
+export function get_tool_names(sarif: SarifFile): string[] {
   const names = new Set<string>();
   for (const run of sarif.runs) {
     const name = run.tool?.driver?.name;
@@ -224,7 +225,7 @@ function get_tool_names(sarif: SarifFile): string[] {
   return [...names];
 }
 
-function get_rules_from_run(run: SarifRun) {
+export function get_rules_from_run(run: SarifRun) {
   const rules = [];
 
   // Index 0: driver rules
@@ -251,7 +252,7 @@ function get_rules_from_run(run: SarifRun) {
  * (GET /repos/{owner}/{repo}/code-scanning/alerts). Only the fields we
  * actually use are declared here.
  */
-interface ApiAlert {
+export interface ApiAlert {
   url: string;
   state?: "open" | "dismissed" | "fixed" | null;
   dismissed_comment?: string | null;
@@ -271,7 +272,9 @@ interface ApiAlert {
  * alert instead. This lets us match alerts without re-fetching the analysis
  * as a SARIF export, which is the racy call this whole approach avoids.
  */
-function alert_identifier_from_api_alert(alert: ApiAlert): AlertIdentifier {
+export function alert_identifier_from_api_alert(
+  alert: ApiAlert,
+): AlertIdentifier {
   const ruleId = alert.rule?.id || "";
   const location = alert.most_recent_instance?.location;
   const filePath = location?.path || "";
@@ -298,7 +301,7 @@ const ALERT_STATES = ["open", "dismissed"] as const;
  * so that both the to-dismiss and to-reopen matching below have the alert
  * data they need, regardless of the API's default `state` filtering.
  */
-async function fetch_alerts_by_identifier(
+export async function fetch_alerts_by_identifier(
   client: GitHubClient,
   nwo: Nwo,
   toolNames: string[],
@@ -328,10 +331,7 @@ async function fetch_alerts_by_identifier(
       )) as unknown as ApiAlert[];
 
       for (const alert of alerts) {
-        alerts_by_identifier.set(
-          alert_identifier_from_api_alert(alert),
-          alert,
-        );
+        alerts_by_identifier.set(alert_identifier_from_api_alert(alert), alert);
       }
     }
   }
@@ -342,7 +342,7 @@ async function fetch_alerts_by_identifier(
   return alerts_by_identifier;
 }
 
-function match_alerts(
+export function match_alerts(
   should_be_dismissed: Set<AlertIdentifier>,
   predicate: (alert: ApiAlert) => boolean,
   alerts_by_identifier: Map<AlertIdentifier, ApiAlert>,
@@ -357,7 +357,7 @@ function match_alerts(
   return alerts;
 }
 
-function alert_identifier(
+export function alert_identifier(
   rules: Array<Array<string>>,
   result: SarifResult,
 ): AlertIdentifier {
@@ -379,7 +379,7 @@ function alert_identifier(
   return [ruleId, filePath, startLine, startColumn].join(";");
 }
 
-function split_alerts(sarif: SarifFile) {
+export function split_alerts(sarif: SarifFile) {
   const normal = new Set<AlertIdentifier>();
   const suppressed = new Set<AlertIdentifier>();
 
@@ -453,6 +453,21 @@ export async function run(): Promise<void> {
 
   const apiURL = getRequiredEnvParam("GITHUB_API_URL");
 
+  // Deferred to a dynamic import so importing this module (e.g. from tests
+  // exercising the pure functions above) doesn't eagerly load the octokit
+  // stack, which is only needed once the action actually runs.
+  const [
+    { GitHub, getOctokitOptions },
+    github,
+    retry,
+    { default: consoleLogLevel },
+  ] = await Promise.all([
+    import("@actions/github/lib/utils"),
+    import("@actions/github"),
+    import("@octokit/plugin-retry"),
+    import("console-log-level"),
+  ]);
+
   const retryingOctokit = GitHub.plugin(retry.retry);
   const client = new retryingOctokit(
     getOctokitOptions(api_token, {
@@ -521,4 +536,8 @@ export async function run(): Promise<void> {
   }
 }
 
-void run();
+// Only run when this module is the actual entrypoint (e.g. `node dist/index.js`),
+// not when imported by tests.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  void run();
+}

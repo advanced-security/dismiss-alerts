@@ -1,30 +1,5 @@
 import { describe, test, expect } from "@jest/globals";
-
-// Shape of an alert as returned by the code scanning alerts list API.
-// Mirrors the ApiAlert interface in src/main.ts.
-interface ApiAlert {
-  url: string;
-  state?: "open" | "dismissed" | "fixed" | null;
-  dismissed_comment?: string | null;
-  rule: { id?: string | null };
-  most_recent_instance?: {
-    location?: {
-      path?: string;
-      start_line?: number;
-      start_column?: number;
-    };
-  };
-}
-
-// Re-implement alert_identifier_from_api_alert for testing (see src/main.ts)
-function alert_identifier_from_api_alert(alert: ApiAlert): string {
-  const ruleId = alert.rule?.id || "";
-  const location = alert.most_recent_instance?.location;
-  const filePath = location?.path || "";
-  const startLine = location?.start_line || 0;
-  const startColumn = location?.start_column || 1;
-  return [ruleId, filePath, startLine, startColumn].join(";");
-}
+import { alert_identifier_from_api_alert, ApiAlert } from "../src/main.js";
 
 describe("alert_identifier_from_api_alert", () => {
   test("builds the identifier from rule id and most_recent_instance.location", () => {
@@ -93,6 +68,8 @@ describe("alert_identifier_from_api_alert", () => {
         location: { path: "test.js", start_line: 10, start_column: 1 },
       },
     };
-    expect(alert_identifier_from_api_alert(alert)).toBe("test-rule-id;test.js;10;1");
+    expect(alert_identifier_from_api_alert(alert)).toBe(
+      "test-rule-id;test.js;10;1",
+    );
   });
 });

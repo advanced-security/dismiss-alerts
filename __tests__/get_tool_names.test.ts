@@ -1,29 +1,5 @@
 import { describe, test, expect } from "@jest/globals";
-
-// Import the types we need for testing
-interface SarifRun {
-  tool?: {
-    driver?: {
-      name?: string;
-    };
-  };
-}
-
-interface SarifFile {
-  runs: Array<SarifRun>;
-}
-
-// Re-implement get_tool_names for testing (see src/main.ts)
-function get_tool_names(sarif: SarifFile): string[] {
-  const names = new Set<string>();
-  for (const run of sarif.runs) {
-    const name = run.tool?.driver?.name;
-    if (name) {
-      names.add(name);
-    }
-  }
-  return [...names];
-}
+import { get_tool_names, SarifFile } from "../src/main.js";
 
 describe("get_tool_names", () => {
   test("returns the tool name from a single run", () => {

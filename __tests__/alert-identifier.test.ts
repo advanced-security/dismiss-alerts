@@ -1,55 +1,5 @@
 import { describe, test, expect } from "@jest/globals";
-
-// Import the types we need for testing
-interface SarifResult {
-  properties?: {
-    "github/alertUrl": string;
-  };
-  locations: Array<{
-    physicalLocation: {
-      artifactLocation: {
-        uri: string;
-      };
-      region?: {
-        startLine?: number;
-        startColumn?: number;
-      };
-    };
-  }>;
-  partialFingerprints: {
-    primaryLocationLineHash?: string;
-  };
-  rule: {
-    id?: string;
-    index: number;
-    toolComponent: { index: number };
-  };
-  ruleId?: string;
-  suppressions: Array<{ kind: string }>;
-}
-
-// Re-implement the alert_identifier function for testing
-function alert_identifier(
-  rules: Array<Array<string>>,
-  result: SarifResult,
-): string {
-  let ruleId;
-  if ("ruleId" in result) {
-    ruleId = result.ruleId;
-  } else if ("id" in result.rule) {
-    ruleId = result.rule.id;
-  } else {
-    const toolComponentIndex =
-      "toolComponent" in result.rule ? result.rule.toolComponent.index + 1 : 0;
-    const ruleIndex = result.rule.index;
-    ruleId = rules[toolComponentIndex][ruleIndex];
-  }
-  const physicalLocation = result.locations[0].physicalLocation;
-  const filePath = physicalLocation.artifactLocation.uri;
-  const startLine = physicalLocation.region?.startLine || 0;
-  const startColumn = physicalLocation.region?.startColumn || 1;
-  return [ruleId, filePath, startLine, startColumn].join(";");
-}
+import { alert_identifier, SarifResult } from "../src/main.js";
 
 describe("alert_identifier", () => {
   const rules = [

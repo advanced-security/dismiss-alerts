@@ -1,40 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-
-// Import the types from main.ts
-interface SarifRun {
-  tool?: {
-    driver?: {
-      name?: string;
-      rules?: Array<{ id: string }>;
-    };
-    extensions?: Array<{
-      rules?: Array<{ id: string }>;
-    }>;
-  };
-}
-
-// Copy the function to test (we'll need to export it from main.ts later)
-function get_rules_from_run(run: SarifRun) {
-  const rules = [];
-
-  // Index 0: driver rules
-  const driver_rules = [];
-  for (const rule of run.tool?.driver?.rules || []) {
-    driver_rules.push(rule.id);
-  }
-  rules.push(driver_rules);
-
-  // Index 1+: extension rules
-  for (const ext of run.tool?.extensions || []) {
-    const ext_rules = [];
-    for (const rule of ext.rules || []) {
-      ext_rules.push(rule.id);
-    }
-    rules.push(ext_rules);
-  }
-
-  return rules;
-}
+import { get_rules_from_run, SarifRun } from "../src/main.js";
 
 describe("get_rules_from_run", () => {
   test("should handle SARIF with only driver rules (no extensions)", () => {
